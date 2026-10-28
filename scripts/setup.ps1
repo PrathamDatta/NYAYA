@@ -5,8 +5,8 @@ $Root = Split-Path -Parent $PSScriptRoot
 Set-Location $Root
 
 function Find-Python {
-  foreach ($v in "3.12", "3.11", "3.10") { try { $p = & py "-$v" -c "import sys;print(sys.executable)" 2>$null; if ($LASTEXITCODE -eq 0 -and $p) { return $p } } catch {} }
-  throw "Python 3.10-3.12 not found. Install Python 3.12 from https://www.python.org/downloads/windows/ (tick 'Add py launcher')."
+  foreach ($v in "3.12", "3.11") { try { $p = & py "-$v" -c "import sys;print(sys.executable)" 2>$null; if ($LASTEXITCODE -eq 0 -and $p) { return $p } } catch {} }
+  throw "Python 3.11 or 3.12 not found. Install Python 3.12 from https://www.python.org/downloads/windows/ (tick 'Add py launcher')."
 }
 $Py = Find-Python
 Write-Host "Using Python: $Py"

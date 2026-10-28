@@ -2,7 +2,7 @@
 
 ## A. Windows 11 laptop (recommended path, no Docker, no database server)
 
-Requirements: Python 3.10–3.12 (3.12 recommended, install from python.org with the *py launcher*), Node.js 20+ (only to build the UI once), ~8 GB free disk (6 GB models), 8 GB RAM minimum (16 GB comfortable).
+Requirements: Python 3.11 or 3.12 (3.12 recommended, install from python.org with the *py launcher*), Node.js 20+ (only to build the UI once), ~8 GB free disk (6 GB models), 8 GB RAM minimum (16 GB comfortable).
 
 ```bat
 git clone https://github.com/PrathamDatta/NYAYA && cd NYAYA

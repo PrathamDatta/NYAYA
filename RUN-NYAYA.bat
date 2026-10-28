@@ -38,7 +38,7 @@ if not exist "%ROOT%backend\app\main.py" (
   if errorlevel 1 goto :fail_clone
 )
 
-REM --- Python 3.10-3.12 ---
+REM --- Python 3.11 or 3.12 (3.10 and older are too old for the pinned packages) ---
 call :findpython
 if not defined PY (
   call :install Python.Python.3.12 "Python 3.12"
@@ -66,6 +66,13 @@ set "VPY=%ROOT%.venv\Scripts\python.exe"
 
 echo.
 echo  [1/6] Python environment
+if exist "%VPY%" (
+  "%VPY%" -c "import sys;sys.exit(0 if sys.version_info>=(3,11) else 1)" >nul 2>nul
+  if errorlevel 1 (
+    echo  The existing environment was built with an old Python - rebuilding it...
+    rmdir /s /q .venv
+  )
+)
 if not exist "%VPY%" (
   %PY% -m venv .venv
   if errorlevel 1 goto :fail
@@ -143,7 +150,6 @@ REM ------------------------------ helpers ------------------------------------
 set "PY="
 py -3.12 --version >nul 2>nul && set "PY=py -3.12"
 if not defined PY py -3.11 --version >nul 2>nul && set "PY=py -3.11"
-if not defined PY py -3.10 --version >nul 2>nul && set "PY=py -3.10"
 exit /b 0
 
 :install
@@ -163,7 +169,7 @@ exit /b 0
 
 :fail_tool
 echo.
-echo  A required tool (Git, Python 3.10-3.12 or Node.js) is missing and could not be installed automatically.
+echo  A required tool (Git, Python 3.11 or 3.12, or Node.js) is missing and could not be installed automatically.
 echo  Install these by hand, then double-click this file again:
 echo    Python 3.12 : https://www.python.org/downloads/windows/   (tick "Add py launcher")
 echo    Node.js LTS : https://nodejs.org

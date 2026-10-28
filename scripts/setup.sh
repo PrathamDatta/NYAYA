@@ -2,7 +2,7 @@
 # Linux/macOS equivalent of setup.ps1.   Usage: scripts/setup.sh [--download-models] [--skip-frontend]
 set -euo pipefail
 cd "$(dirname "$0")/.."
-PY=$(command -v python3.12 || command -v python3.11 || command -v python3.10 || true); [ -n "$PY" ] || { echo "Need Python 3.10-3.12"; exit 1; }
+PY=$(command -v python3.12 || command -v python3.11 || true); [ -n "$PY" ] || { echo "Need Python 3.11 or 3.12"; exit 1; }
 [ -d .venv ] || "$PY" -m venv .venv
 .venv/bin/pip install --upgrade pip
 .venv/bin/pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/cpu
