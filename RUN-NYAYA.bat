@@ -38,6 +38,12 @@ if not exist "%ROOT%backend\app\main.py" (
   if errorlevel 1 goto :fail_clone
 )
 
+REM --- Pick up fixes: update an existing download (only when this file is NOT the one inside the project, since git would rewrite a running script) ---
+if exist "%ROOT%.git" if /i not "%~dp0"=="%ROOT%" (
+  echo  Checking for updates...
+  git -C "%ROOT:~0,-1%" pull --ff-only
+)
+
 REM --- Python 3.11 or 3.12 (3.10 and older are too old for the pinned packages) ---
 call :findpython
 if not defined PY (

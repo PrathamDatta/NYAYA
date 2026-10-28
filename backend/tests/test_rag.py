@@ -123,7 +123,9 @@ def test_legal_language_score_is_advisory_and_only_words_a_decline(client, user,
     ok = client.post("/api/ask", json={"question": "Can I get a refund of the price for defective goods from the seller?"}).json()
     assert ok["status"] == "ok" and ok["citations"] and ok["domain_check"]["looks_legal"] is False  # still answered: evidence is what gates
     no = client.post("/api/ask", json={"question": "What is the law on interplanetary salvage of asteroid mining rights?"}).json()
-    assert no["status"] == "insufficient_evidence" and "doesn't look like a question about law" in no["message"]
+    # The detector is wrong too often to be shown to users as a claim ("this isn't a legal question"): the message says what is loaded instead.
+    assert no["status"] == "insufficient_evidence" and "doesn't look like" not in no["message"] and "do not contain enough" in no["message"]
+    assert "Acts" in no["message"] or "No Acts are loaded" in no["message"] or "rephrasing" in no["message"]
 
 
 def test_topic_identification_uses_real_model_when_installed(models_present):

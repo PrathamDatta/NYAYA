@@ -95,12 +95,7 @@ class LegalResponsePipeline:
         if not hits or coverage < s.min_query_coverage:  # the legal-language score is advisory: it only words the decline
             resp.update({
                 "status": "insufficient_evidence", "answer": None, "citations": [], "sections": {},
-                "message": (("This doesn't look like a question about law, so there is nothing in the legal sources to answer it from. "
-                             "If it is a legal question, try describing the dispute and the parties involved."
-                             if domain.get("looks_legal") is False else
-                             "The indexed legal sources do not contain enough to answer this reliably, so no answer is given. "
-                             "Try rephrasing with the Act, section or kind of dispute, or ask a legal-aid clinic.")
-                            if rinfo.get("corpus_chunks") else
+                "message": (self._decline_message(db) if rinfo.get("corpus_chunks") else
                             "No legal sources have been ingested yet. See docs/INGESTION.md to load the corpus."),
                 "timings": {**timings, "total_s": round(time.perf_counter() - t0, 3)},
             })
@@ -151,6 +146,26 @@ class LegalResponsePipeline:
             "timings": {**timings, "total_s": round(time.perf_counter() - t0, 3)},
         })
         return resp
+
+    @staticmethod
+    def _decline_message(db: Session) -> str:
+        """Say what is actually loaded. (The legal-language detector is deliberately NOT used to word this: it wrongly called valid legal questions non-legal.)"""
+        from sqlalchemy import func, select
+
+        from ..models import LegalSource
+
+        syn = None if get_settings().include_synthetic_corpus else LegalSource.is_synthetic.is_(False)
+        q = select(LegalSource.doc_type, func.count(LegalSource.id)).group_by(LegalSource.doc_type)
+        counts = dict(db.execute(q.where(syn) if syn is not None else q).all())
+        names = {"judgment": "Supreme Court judgments", "statute": "Acts", "rule": "rules", "notification": "notifications"}
+        have = ", ".join(f"{n} {names.get(t, t)}" for t, n in counts.items()) or "no documents"
+        msg = f"The loaded legal sources ({have}) do not contain enough to answer this reliably, so no answer is given."
+        if not counts.get("statute"):
+            msg += (" No Acts are loaded in this installation yet, so everyday disputes such as tenancy, consumer or cyber-fraud questions "
+                    "cannot be answered from statute text. Try a question about a legal principle or court procedure, or load the relevant Acts (docs/INGESTION.md).")
+        else:
+            msg += " Try rephrasing with the Act, section or kind of dispute, or ask a legal-aid clinic."
+        return msg
 
     @staticmethod
     def _next_steps(topic: str | None, contacts: list[dict]) -> list[str]:
