@@ -12,7 +12,7 @@ if /i not "%~1"=="stay" (
 setlocal EnableExtensions
 title Nyaya Bharatha launcher
 set "REPO_URL=https://github.com/PrathamDatta/NYAYA"
-set "BRANCH=claude/kind-ritchie-pj5ylh"
+set "BRANCH=main"
 set "HF_HUB_DISABLE_SYMLINKS_WARNING=1"
 set "LOG=%TEMP%\nyaya-launcher.log"
 echo Launcher started %DATE% %TIME%> "%LOG%"
