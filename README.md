@@ -14,6 +14,8 @@ scripts\setup.bat -DownloadModels   :: installs Python deps, builds the UI, down
 scripts\start.bat                   :: http://127.0.0.1:8000
 scripts\cli.bat ingest-sci --year 2023 --limit 40
 ```
+Easiest on Windows: double-click `RUN-NYAYA.bat` (installs what is missing, downloads models, loads sample judgments, starts the app, opens the browser).
+
 Linux/macOS: `scripts/setup.sh --download-models && scripts/start.sh`. Details, 8 GB-RAM tuning, split hosting (Vercel) and rollback: `docs/DEPLOY.md`.
 
 ## What is inside
