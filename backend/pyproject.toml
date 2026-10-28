@@ -1,0 +1,28 @@
+[tool.ruff]
+line-length = 140
+target-version = "py310"
+extend-exclude = ["alembic/versions", "app/ml/vendor"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S"]
+ignore = ["E501", "B008", "S101", "S105", "S311", "UP007", "UP006", "UP035", "S608", "B904", "UP037", "B905", "S324", "S110", "S112"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S", "E731", "E741", "E702", "B"]
+"eval/*" = ["S", "E731", "E741", "E702", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = ["ignore::DeprecationWarning", "ignore::FutureWarning", "ignore::UserWarning"]
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
+exclude = ["alembic/", "app/ml/vendor/", "eval/", "tests/"]
+check_untyped_defs = false
+warn_unused_ignores = false
+
+[[tool.mypy.overrides]]
+module = "app.ml.vendor.*"
+follow_imports = "skip"
+ignore_errors = true
