@@ -1,0 +1,56 @@
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/fraunces";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Design tokens. Colours are RGB triplets so Tailwind opacity modifiers work; dark mode redefines the same tokens. */
+:root {
+  --paper: 250 247 242; --surface: 255 255 255; --sunken: 243 239 231; --ink: 20 24 31; --muted: 91 100 112; --line: 228 222 211;
+  --brand: 31 58 95; --brand-strong: 21 42 72; --brand-soft: 228 235 245;
+  --brass: 154 100 12; --brass-soft: 247 236 207;
+  --ok: 38 112 80; --ok-soft: 224 242 232; --warn: 146 90 8; --warn-soft: 252 240 212; --bad: 168 44 34; --bad-soft: 251 228 224;
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  --paper: 15 18 24; --surface: 23 28 37; --sunken: 29 35 46; --ink: 236 233 226; --muted: 160 168 180; --line: 46 54 68;
+  --brand: 140 176 224; --brand-strong: 180 205 238; --brand-soft: 30 45 68;
+  --brass: 226 175 84; --brass-soft: 60 46 20;
+  --ok: 110 200 154; --ok-soft: 22 52 38; --warn: 232 183 92; --warn-soft: 58 44 16; --bad: 244 140 128; --bad-soft: 66 28 24;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: 15 18 24; --surface: 23 28 37; --sunken: 29 35 46; --ink: 236 233 226; --muted: 160 168 180; --line: 46 54 68;
+    --brand: 140 176 224; --brand-strong: 180 205 238; --brand-soft: 30 45 68;
+    --brass: 226 175 84; --brass-soft: 60 46 20;
+    --ok: 110 200 154; --ok-soft: 22 52 38; --warn: 232 183 92; --warn-soft: 58 44 16; --bad: 244 140 128; --bad-soft: 66 28 24;
+    color-scheme: dark;
+  }
+}
+
+html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+body { @apply bg-paper font-sans text-ink antialiased; font-feature-settings: "cv11", "ss01"; }
+h1, h2, h3 { @apply font-display tracking-tight; font-variation-settings: "opsz" 72; }
+:focus-visible { outline: 2px solid rgb(var(--brand)); outline-offset: 2px; border-radius: 4px; }
+::selection { background: rgb(var(--brass-soft)); }
+.indic { @apply font-indic; line-height: 1.8; }
+
+@layer components {
+  .btn { @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50; min-height: 44px; }
+  .btn-primary { @apply btn bg-brand text-paper hover:bg-brand-strong; }
+  :root[data-theme="dark"] .btn-primary { color: rgb(15 18 24); }
+  .btn-secondary { @apply btn border border-line bg-surface text-ink hover:bg-sunken; }
+  .btn-ghost { @apply btn text-brand hover:bg-brand-soft; }
+  .btn-danger { @apply btn bg-bad text-white hover:opacity-90; }
+  .field { @apply w-full rounded-lg border border-line bg-surface px-3.5 py-2.5 text-[15px] text-ink placeholder:text-muted/70; min-height: 44px; }
+  .label { @apply mb-1.5 block text-sm font-medium text-ink; }
+  .card { @apply rounded-xl border border-line bg-surface; }
+  .chip { @apply inline-flex items-center gap-1 rounded-full border border-line bg-sunken px-2.5 py-0.5 text-xs font-medium text-muted; }
+  .prose-legal p { @apply mb-3 leading-relaxed; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; scroll-behavior: auto !important; }
+}
+@keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.rise { animation: rise 0.4s ease-out both; }
