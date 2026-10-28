@@ -107,36 +107,45 @@ class BertEncoder:
 
 
 class LegalTextEncoder(BertEncoder):
-    """InLegalBERT: statute / provision passages and queries about them."""
+    """InLegalBERT: passage and query representation for retrieval. Best single encoder in our retrieval evaluation."""
     key = "inlegalbert"
 
 
 class CaseLawEncoder(BertEncoder):
-    """InCaseLawBERT: judgment passages and case-matching queries."""
+    """InCaseLawBERT: judgment-passage representation. Also the best-measured deployable topic classifier (see docs/EVALUATION.md)."""
     key = "incaselawbert"
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._protos: tuple[list[str], np.ndarray, np.ndarray] | None = None
+
+    def classify_topic(self, text: str, topics: dict[str, str]) -> list[tuple[str, float]]:
+        """Rank topics by cosine to prototype descriptions after centring on the prototype mean (needs no corpus or test data)."""
+        names = list(topics)
+        if self._protos is None or self._protos[0] != names:
+            P = self.embed([topics[n] for n in names])
+            mean = P.mean(0)
+            Pc = P - mean
+            self._protos = (names, Pc / np.linalg.norm(Pc, axis=1, keepdims=True), mean)
+        q = self.embed([text])[0] - self._protos[2]
+        q = q / max(float(np.linalg.norm(q)), 1e-9)
+        sims = self._protos[1] @ q
+        return [(names[i], float(sims[i])) for i in np.argsort(-sims)]
 
 
 class CustomLegalNLP(BertEncoder):
     """CustomInLawBERT (own domain-specific WordPiece vocabulary).
 
-    Role: legal-topic identification by nearest topic prototype, plus a third representation
-    that is only kept in retrieval fusion if evaluation shows a measurable gain.
+    Measured role: **legal-language detection**. The cosine between a question and the corpus centroid in this model's space
+    separates legal wording from unrelated text better than the other two encoders (see docs/EVALUATION.md). It was *not*
+    better at topic classification or retrieval, and its published masked-LM head does not produce valid predictions
+    (docs/MODELS.md), so neither of those uses is offered here.
     """
     key = "custominlawbert"
 
-    def __init__(self) -> None:
-        super().__init__()
-        self._protos: tuple[list[str], np.ndarray] | None = None
-
-    def classify_topic(self, text: str, topics: dict[str, str]) -> list[tuple[str, float]]:
-        """Rank topics by cosine similarity to prototype descriptions. Returns [(topic, score)] best first."""
-        if self._protos is None or self._protos[0] != list(topics):
-            names = list(topics)
-            self._protos = (names, self.embed([topics[n] for n in names]))
-        q = self.embed([text])[0]
-        sims = self._protos[1] @ q
-        order = np.argsort(-sims)
-        return [(self._protos[0][i], float(sims[i])) for i in order]
+    def legal_language_score(self, text: str, centroid: np.ndarray) -> float:
+        c = centroid / max(float(np.linalg.norm(centroid)), 1e-9)
+        return float(self.embed([text])[0] @ c)
 
 
 _WS = re.compile(r"\s+")

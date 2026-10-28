@@ -67,6 +67,56 @@ def metrics(ranked: list[list[int]], gold: list[set[int]], src_of: list[int], go
             "judgment_hit@1": m(h1s), "judgment_hit@5": m(h5s), "judgment_hit@5_ci95": ci(h5s)}
 
 
+def subset_scores(ranked: list[list[int]], gold: list[set[int]], idxs: list[int]) -> dict:
+    rr = [next((1 / (n + 1) for n, i in enumerate(ranked[q][:10]) if i in gold[q]), 0.0) for q in idxs]
+    r10 = [len(set(ranked[q][:10]) & gold[q]) / len(gold[q]) for q in idxs]
+    return {"MRR": round(float(np.mean(rr)), 4), "R@10": round(float(np.mean(r10)), 4), "n": len(idxs)}
+
+
+FUSIONS = {
+    "bm25+inlegalbert": ["bm25", "inlegalbert:raw"], "bm25+incaselawbert": ["bm25", "incaselawbert:raw"],
+    "bm25+custominlawbert": ["bm25", "custominlawbert:raw"],
+    "bm25+inlegalbert+incaselawbert": ["bm25", "inlegalbert:raw", "incaselawbert:raw"],
+    "bm25+all3": ["bm25", "inlegalbert:raw", "incaselawbert:raw", "custominlawbert:raw"],
+    "dense only (3 encoders)": ["inlegalbert:raw", "incaselawbert:raw", "custominlawbert:raw"],
+}
+
+
+def run_systems(idx, texts: list[str], keep: np.ndarray, pool: int = 100) -> dict[str, list[list[int]]]:
+    """Rank every candidate chunk for each query with each system (BM25, 3 encoders raw/centred) and each fusion."""
+    rankings: dict[str, list[list[int]]] = {}
+    bm = []
+    for t in texts:
+        sc = idx.bm25.scores(tokens(t))
+        bm.append([i for i in sorted(sc, key=lambda i: -sc[i]) if keep[i]][:pool])
+    rankings["bm25"] = bm
+    for key in MODELS:
+        qv = embed_texts(key, texts)
+        raw, has, mean = idx.raw[key], idx.mats[key][1] & keep, idx.mats[key][2]
+        for variant in ("raw", "centred"):
+            if variant == "raw":
+                mat, q = raw, qv
+            else:
+                mat = raw - mean
+                mat = mat / np.maximum(np.linalg.norm(mat, axis=1, keepdims=True), 1e-9)
+                q = qv - mean
+                q = q / np.maximum(np.linalg.norm(q, axis=1, keepdims=True), 1e-9)
+            sim = q @ mat.T
+            sim[:, ~has] = -9
+            rankings[f"{key}:{variant}"] = [list(np.argsort(-row)[:pool]) for row in sim]
+    for name, comps in FUSIONS.items():
+        rankings[f"FUSION {name}"] = [rrf([rankings[c][qi] for c in comps])[:pool] for qi in range(len(texts))]
+    return rankings
+
+
+def degrade(text: str, frac: float, rng) -> str:  # noqa: ANN001
+    """Stress test: delete a random fraction of the content words, simulating a paraphrase that shares less vocabulary."""
+    words = text.split()
+    content = [i for i, w in enumerate(words) if tokens(w)]
+    drop = set(rng.choice(content, size=int(len(content) * frac), replace=False)) if content else set()
+    return " ".join(w for i, w in enumerate(words) if i not in drop)
+
+
 def retrieval_eval(db) -> dict:
     idx = get_index(db)
     qs = build_retrieval_queries(db)
@@ -76,100 +126,147 @@ def retrieval_eval(db) -> dict:
     gold = [{pos[c] for c in q.gold_chunks if c in pos and keep[pos[c]]} for q in qs]
     ok = [i for i, g in enumerate(gold) if g]
     qs, gold = [qs[i] for i in ok], [gold[i] for i in ok]
-    texts = [q.text for q in qs]
-    gold_src = [q.source_id for q in qs]
-    pool = 100
+    texts, gold_src = [q.text for q in qs], [q.source_id for q in qs]
 
-    rankings: dict[str, list[list[int]]] = {}
-    bm = []
-    for t in texts:
-        sc = idx.bm25.scores(tokens(t))  # type: ignore[union-attr]
-        bm.append([i for i in sorted(sc, key=lambda i: -sc[i]) if keep[i]][:pool])
-    rankings["bm25"] = bm
-    for key in MODELS:
-        qv = embed_texts(key, texts)
-        raw = idx.raw[key]
-        has = idx.mats[key][1] & keep
-        mean = idx.mats[key][2]
-        for variant in ("raw", "centred"):
-            if variant == "raw":
-                mat, q = raw, qv
-            else:
-                mat = raw - mean
-                mat = mat / np.maximum(np.linalg.norm(mat, axis=1, keepdims=True), 1e-9)
-                q = qv - mean
-                q = q / np.maximum(np.linalg.norm(q, axis=1, keepdims=True), 1e-9)
-            s = q @ mat.T
-            s[:, ~has] = -9
-            rankings[f"{key}:{variant}"] = [list(np.argsort(-row)[:pool]) for row in s]
+    rankings = run_systems(idx, texts, keep)
     results = {name: metrics(r, gold, src_of, gold_src) for name, r in rankings.items()}
-    fusions = {
-        "bm25+inlegalbert": ["bm25", "inlegalbert:centred"], "bm25+incaselawbert": ["bm25", "incaselawbert:centred"],
-        "bm25+custominlawbert": ["bm25", "custominlawbert:centred"],
-        "bm25+inlegalbert+incaselawbert": ["bm25", "inlegalbert:centred", "incaselawbert:centred"],
-        "bm25+all3": ["bm25", "inlegalbert:centred", "incaselawbert:centred", "custominlawbert:centred"],
-        "inlegalbert+incaselawbert+custominlawbert (dense only)": ["inlegalbert:centred", "incaselawbert:centred", "custominlawbert:centred"],
-    }
-    for name, comps in fusions.items():
-        fused = [rrf([rankings[c][qi] for c in comps])[:pool] for qi in range(len(qs))]
-        results[f"FUSION {name}"] = metrics(fused, gold, src_of, gold_src)
+
+    # overlap between each query and its gold passage -> how lexical is this benchmark?
+    ov = []
+    for q, g in zip(qs, gold):
+        qt = set(tokens(q.text))
+        gt = set().union(*(set(tokens(idx.meta[i]["text"])) for i in g))
+        ov.append(len(qt & gt) / max(1, len(qt)))
+    order = np.argsort(ov, kind="stable")
+    k = int(len(order) * 0.4)
+    low, high = [int(i) for i in order[:k]], [int(i) for i in order[-k:]]
+    strat = {"overlap_mean": round(float(np.mean(ov)), 3), "share_overlap_ge_0.95": round(float(np.mean([v >= 0.95 for v in ov])), 3),
+             "low_overlap": {n: subset_scores(r, gold, low) for n, r in rankings.items()},
+             "high_overlap": {n: subset_scores(r, gold, high) for n, r in rankings.items()},
+             "low_overlap_max": round(float(max(ov[i] for i in low)), 3), "high_overlap_min": round(float(min(ov[i] for i in high)), 3)}
+
+    rng = np.random.default_rng(0)
+    stress_texts = [degrade(t, 0.5, rng) for t in texts]
+    stress_rank = run_systems(idx, stress_texts, keep)
+    stress = {name: metrics(r, gold, src_of, gold_src) for name, r in stress_rank.items()}
     return {"n_queries": len(qs), "n_judgments": len({q.source_id for q in qs}), "candidate_chunks": int(keep.sum()), "results": results,
-            "note": "Weak supervision: queries are SCR headnote sentences, gold = the judgment paragraph(s) they cite; headnote chunks excluded from the pool."}
+            "stratified": strat, "stress_50pct_words_removed": stress,
+            "note": "Weak supervision: queries are SCR headnote clauses, gold = the judgment paragraph(s) they cite; headnote chunks excluded from the pool."}
 
 
 def topic_eval() -> dict:
     labelled = [(q, t) for t, qs in TOPIC_QUERIES.items() for q in qs]
     names = list(TOPICS)
-    out = {"n_queries": len(labelled), "n_topics": len(names), "results": {}}
+    truth = np.array([names.index(t) for _, t in labelled])
+    rng = np.random.default_rng(0)
+    sims: dict[str, np.ndarray] = {}
     for key in MODELS:
-        protos = embed_texts(key, [TOPICS[n] for n in names])
-        qv = embed_texts(key, [q for q, _ in labelled])
-        # centre with the mean of prototypes+queries (no labels used) to counter anisotropy
-        mean = np.vstack([protos, qv]).mean(0)
-        def acc(c: bool) -> float:
-            P, Q = (protos - mean, qv - mean) if c else (protos, qv)
-            P = P / np.linalg.norm(P, axis=1, keepdims=True); Q = Q / np.linalg.norm(Q, axis=1, keepdims=True)
-            pred = [names[i] for i in (Q @ P.T).argmax(1)]
-            return round(sum(p == t for p, (_, t) in zip(pred, labelled)) / len(labelled), 4)
-        out["results"][key] = {"accuracy_raw": acc(False), "accuracy_centred": acc(True)}
-    kw = [(keyword_topic(q) or [(None, 0)])[0][0] for q, _ in labelled]
-    out["results"]["keyword_baseline"] = {"accuracy": round(sum(p == t for p, (_, t) in zip(kw, labelled)) / len(labelled), 4)}
-    return out
+        P = embed_texts(key, [TOPICS[n] for n in names]); Q = embed_texts(key, [q for q, _ in labelled])
+        for variant, mean in (("raw", None), ("proto_centred", P.mean(0))):  # prototype-mean centring needs no corpus or test data
+            Pc, Qc = (P, Q) if mean is None else (P - mean, Q - mean)
+            Pc = Pc / np.linalg.norm(Pc, axis=1, keepdims=True); Qc = Qc / np.linalg.norm(Qc, axis=1, keepdims=True)
+            sims[f"{key}:{variant}"] = Qc @ Pc.T
+
+    def acc(s: np.ndarray) -> list:
+        ok = (s.argmax(1) == truth).astype(float)
+        boots = [ok[rng.integers(0, len(ok), len(ok))].mean() for _ in range(1000)]
+        return [round(float(ok.mean()), 4), [round(float(np.percentile(boots, 2.5)), 3), round(float(np.percentile(boots, 97.5)), 3)]]
+
+    def z(s: np.ndarray) -> np.ndarray:  # put encoders on a common scale before averaging
+        return (s - s.mean(1, keepdims=True)) / (s.std(1, keepdims=True) + 1e-9)
+
+    res: dict = {}
+    for k, v in sims.items():
+        res[k] = dict(zip(["accuracy", "ci95"], acc(v)))
+    ens = {"inlegalbert+incaselawbert": ["inlegalbert", "incaselawbert"], "inlegalbert+custominlawbert": ["inlegalbert", "custominlawbert"],
+           "incaselawbert+custominlawbert": ["incaselawbert", "custominlawbert"], "all three": MODELS}
+    for name, ms in ens.items():
+        s = sum(z(sims[f"{m}:proto_centred"]) for m in ms)
+        res[f"ENSEMBLE {name} (proto_centred)"] = dict(zip(["accuracy", "ci95"], acc(s)))
+    kw = np.array([names.index(t) if (t := (keyword_topic(q) or [(None, 0)])[0][0]) in names else -1 for q, _ in labelled])
+    res["keyword_baseline"] = {"accuracy": round(float((kw == truth).mean()), 4)}
+    return {"n_queries": len(labelled), "n_topics": len(names), "results": res}
+
+
+def domain_eval(db) -> dict:
+    """Which encoder best tells legal-language questions from unrelated ones? Score = cosine to the corpus centroid."""
+    idx = get_index(db)
+    legal = [q for qs in TOPIC_QUERIES.values() for q in qs]
+    rng = np.random.default_rng(0)
+
+    def auc(p, n):
+        return float(np.mean([(a > b) + 0.5 * (a == b) for a in p for b in n]))
+    res = {}
+    for key in MODELS:
+        has = idx.mats[key][1]
+        cen = idx.raw[key][has].mean(0)
+        cen /= np.linalg.norm(cen)
+        sl, so = embed_texts(key, legal) @ cen, embed_texts(key, OUT_OF_DOMAIN) @ cen
+        boots = [auc(sl[rng.integers(0, len(sl), len(sl))], so[rng.integers(0, len(so), len(so))]) for _ in range(300)]
+        best = max(((float((sl >= t).mean() + (so < t).mean()) / 2, float(t)) for t in np.unique(np.concatenate([sl, so]))), key=lambda x: x[0])
+        res[key] = {"auc": round(auc(sl, so), 3), "auc_ci95": [round(float(np.percentile(boots, 2.5)), 3), round(float(np.percentile(boots, 97.5)), 3)],
+                    "best_threshold": round(best[1], 4), "balanced_accuracy_at_threshold": round(best[0], 3), "legal_mean": round(float(sl.mean()), 4), "unrelated_mean": round(float(so.mean()), 4)}
+    return {"n_legal": len(legal), "n_unrelated": len(OUT_OF_DOMAIN), "results": res}
 
 
 def gate_eval(db) -> dict:
-    """Choose the evidence-coverage rule from measurements: answerable = headnote queries; unanswerable = unrelated queries."""
+    """Choose the evidence gate from measurements.
+
+    answerable = (a) 120 headnote clauses and (b) 12 hand-written doctrinal questions; unrelated = 20 clearly non-legal questions.
+    Three coverage definitions are compared; the production rule is the best-single-passage coverage."""
+    from app import runtime
+    from app.config import get_settings
     from app.rag.retriever import Filters, LegalRetriever
     from app.rag.textutil import tokens as tk
 
+    from .data import DOCTRINAL
+
     idx = get_index(db)
     ans = [q.text for q in build_retrieval_queries(db, 120)]
-    r = LegalRetriever(components=["bm25", "inlegalbert", "incaselawbert"])
+    r = LegalRetriever(components=runtime.RETRIEVAL_COMPONENTS)  # the production default
+    mx = max(idx.bm25.idf.values())  # type: ignore[union-attr]
+
     def scores(texts: list[str]) -> dict[str, list[float]]:
         out: dict[str, list[float]] = {"union_top6": [], "union_top3": [], "best_single": []}
-        mx = max(idx.bm25.idf.values())  # type: ignore[union-attr]
         for t in texts:
             hits, _ = r.search(db, t, Filters(), top_k=6)
             terms = set(tk(t))
             tot = sum(idx.bm25.idf.get(x, mx) for x in terms) or 1  # type: ignore[union-attr]
+
             def cov(hs) -> float:  # noqa: ANN001
                 present = set().union(*(terms & set(tk(h.text)) for h in hs)) if hs else set()
                 return sum(idx.bm25.idf.get(x, mx) for x in present) / tot  # type: ignore[union-attr]
-            out["union_top6"].append(cov(hits)); out["union_top3"].append(cov(hits[:3]))
+            out["union_top6"].append(cov(hits))
+            out["union_top3"].append(cov(hits[:3]))
             out["best_single"].append(max((cov([h]) for h in hits), default=0.0))
         return out
-    a, o = scores(ans), scores(OUT_OF_DOMAIN)
+    a, d, o = scores(ans), scores(DOCTRINAL), scores(OUT_OF_DOMAIN)
     res = {}
     for rule in a:
         best = None
         for tau in np.arange(0.1, 0.95, 0.05):
-            tpr = float(np.mean([x >= tau for x in a[rule]])); tnr = float(np.mean([x < tau for x in o[rule]]))
-            bal = (tpr + tnr) / 2
-            if best is None or bal > best["balanced_accuracy"]:
-                best = {"threshold": round(float(tau), 2), "answerable_kept": round(tpr, 3), "unrelated_declined": round(tnr, 3), "balanced_accuracy": round(bal, 3)}
-        res[rule] = {"best": best, "answerable_median": round(float(np.median(a[rule])), 3), "unrelated_median": round(float(np.median(o[rule])), 3),
-                     "unrelated_max": round(float(np.max(o[rule])), 3), "answerable_p10": round(float(np.percentile(a[rule], 10)), 3)}
-    return {"n_answerable": len(ans), "n_unrelated": len(OUT_OF_DOMAIN), "rules": res}
+            kept_a = float(np.mean([x >= tau for x in a[rule]])); kept_d = float(np.mean([x >= tau for x in d[rule]])); tnr = float(np.mean([x < tau for x in o[rule]]))
+            bal = ((kept_a + kept_d) / 2 + tnr) / 2  # answerable sets weighted equally, then vs unrelated
+            if best is None or bal > best["balanced_accuracy"] + 1e-9:
+                best = {"threshold": round(float(tau), 2), "headnote_kept": round(kept_a, 3), "doctrinal_kept": round(kept_d, 3), "unrelated_declined": round(tnr, 3), "balanced_accuracy": round(bal, 3)}
+        res[rule] = {"best": best, "doctrinal_min": round(float(np.min(d[rule])), 3), "doctrinal_median": round(float(np.median(d[rule])), 3),
+                     "headnote_p10": round(float(np.percentile(a[rule], 10)), 3), "unrelated_median": round(float(np.median(o[rule])), 3), "unrelated_max": round(float(np.max(o[rule])), 3)}
+    st = get_settings()
+    tc = st.min_query_coverage
+    ship = {"rule": "best_single", "min_query_coverage": tc, "headnote_kept": round(float(np.mean([x >= tc for x in a["best_single"]])), 3),
+            "doctrinal_kept": round(float(np.mean([x >= tc for x in d["best_single"]])), 3), "unrelated_declined": round(float(np.mean([x < tc for x in o["best_single"]])), 3),
+            "doctrinal_declined": [DOCTRINAL[i] for i, x in enumerate(d["best_single"]) if x < tc],
+            "unrelated_still_answered": [OUT_OF_DOMAIN[i] for i, x in enumerate(o["best_single"]) if x >= tc]}
+    # The legal-language detector as a *hard* gate was tried and rejected: measure why.
+    cen = idx.centroid("custominlawbert")
+    cen = cen / np.linalg.norm(cen)
+    td = st.domain_threshold or 0.0
+    dom = lambda texts: embed_texts("custominlawbert", texts) @ cen  # noqa: E731
+    ship["legal_language_detector_rejects_headnote"] = round(float(np.mean(dom(ans) < td)), 3)
+    ship["legal_language_detector_rejects_doctrinal"] = round(float(np.mean(dom(DOCTRINAL) < td)), 3)
+    ship["legal_language_detector_catches_unrelated"] = round(float(np.mean(dom(OUT_OF_DOMAIN) < td)), 3)
+    ship["domain_threshold"] = td
+    return {"n_headnote": len(ans), "n_doctrinal": len(DOCTRINAL), "n_unrelated": len(OUT_OF_DOMAIN), "rules": res, "production_rule": ship}
 
 
 def pipeline_eval(db) -> dict:
@@ -196,8 +293,6 @@ def pipeline_eval(db) -> dict:
 
 
 def translation_eval() -> dict:
-    import resource
-
     from app.ml.translation import SUPPORTED_TARGETS, IndicTranslationService
 
     sents = ["The tenant shall return the security deposit within thirty days of vacating the premises.",
@@ -216,26 +311,51 @@ def translation_eval() -> dict:
             lo, hi = ranges[lang]; letters = [c for c in r["translation"] if c.isalpha()]
             script.append(sum(lo <= ord(c) <= hi for c in letters) / max(1, len(letters)))
         rows[lang] = {"mean_s_per_sentence": round(float(np.mean(secs)), 2), "target_script_share": round(float(np.mean(script)), 3), "len_ratio": round(float(np.mean(ratios)), 2)}
-    return {"languages": rows, "peak_rss_mb": resource.getrusage(resource.RUSAGE_SELF).ru_maxrss // 1024,
+    return {"languages": rows,
             "note": "No reference translations are available offline, so BLEU/chrF are NOT computed here (the model card reports its own). "
                     "These numbers check that output is non-empty, in the correct script, and give latency/memory."}
 
 
+PEAK = """
+import os
+def cur_mb():
+    if os.path.exists('/proc/self/status'):
+        for l in open('/proc/self/status'):
+            if l.startswith('VmRSS'):
+                return int(l.split()[1]) // 1024
+    try:
+        import psutil
+        return int(psutil.Process().memory_info().rss) // 1048576
+    except Exception:
+        return None
+def peak_mb():
+    # VmHWM is per-process and resets on exec (ru_maxrss is inherited across fork, so it would be wrong here)
+    if os.path.exists('/proc/self/status'):
+        for l in open('/proc/self/status'):
+            if l.startswith('VmHWM'):
+                return int(l.split()[1]) // 1024
+    try:
+        import psutil
+        return int(psutil.Process().memory_info().peak_wset) // 1048576  # Windows
+    except Exception:
+        return None
+"""
+
+
 def resources_eval() -> dict:
-    code = ("import time,resource,sys;t=time.time();from app.ml.encoders import {c};from app.ml.translation import IndicTranslationService as T;"
-            "{body};print(round(time.time()-t,1),resource.getrusage(resource.RUSAGE_SELF).ru_maxrss//1024)")
+    code = "import time, sys\nt = time.time()\n{imports}\n" + PEAK + "{body}\nprint(round(time.time() - t, 1), peak_mb(), cur_mb(), round(per, 2))\n"
     out = {}
     for key, cls in (("inlegalbert", "LegalTextEncoder"), ("incaselawbert", "CaseLawEncoder"), ("custominlawbert", "CustomLegalNLP")):
-        c = code.format(c=cls, body=f"{cls}().encode(['The seller shall refund the price.'])")
+        c = code.format(imports=f"from app.ml.encoders import {cls}", body=f"x = {cls}()\nx.encode(['warm up'])\nimport time as _t\n_s = _t.time()\nx.encode(['The seller shall refund the price of defective goods within fifteen days.'] * 8)\nper = (_t.time() - _s) / 8")
         r = subprocess.run([sys.executable, "-W", "ignore", "-c", c], capture_output=True, text=True)
-        s, mb = r.stdout.split()[-2:]
-        out[key] = {"load_plus_first_encode_s": float(s), "peak_rss_mb": int(mb)}
+        s, mb, cur, per = r.stdout.split()[-4:]
+        out[key] = {"load_plus_first_encode_s": float(s), "peak_rss_mb": int(mb), "steady_rss_mb": int(cur), "s_per_passage_warm": float(per)}
     for name, env in (("inlegaltrans_fp32", {}), ("inlegaltrans_int8_dynamic", {"NYAYA_TRANSLATION_QUANTIZE_INT8": "true"})):
         import os
-        c = code.format(c="LegalTextEncoder", body="T().translate('The seller shall refund the price of defective goods within fifteen days.', 'hi')")
+        c = code.format(imports="from app.ml.translation import IndicTranslationService as T", body="x = T()\nx.translate('Warm up sentence.', 'hi')\nimport time as _t\n_s = _t.time()\nfor _q in ('The seller shall refund the price of defective goods within fifteen days.', 'A consumer may file a complaint before the District Commission.', 'The tenant shall return the deposit within thirty days.'):\n    x.translate(_q, 'hi')\nper = (_t.time() - _s) / 3")
         r = subprocess.run([sys.executable, "-W", "ignore", "-c", c], capture_output=True, text=True, env={**os.environ, **env})
-        s, mb = r.stdout.split()[-2:]
-        out[name] = {"load_plus_first_translation_s": float(s), "peak_rss_mb": int(mb)}
+        s, mb, cur, per = r.stdout.split()[-4:]
+        out[name] = {"load_plus_first_translation_s": float(s), "peak_rss_mb": int(mb), "steady_rss_mb": int(cur), "s_per_sentence_warm": float(per)}
     from app.config import get_settings
     out["disk_mb_models_dir"] = round(sum(f.stat().st_size for f in get_settings().models_path.rglob("*") if f.is_file()) / 1e6)
     out["host"] = {"python": platform.python_version(), "machine": platform.machine(), "cpu_count": __import__("os").cpu_count()}
@@ -244,7 +364,7 @@ def resources_eval() -> dict:
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("what", choices=["retrieval", "topic", "gate", "pipeline", "translation", "resources", "all"])
+    ap.add_argument("what", choices=["retrieval", "topic", "domain", "gate", "pipeline", "translation", "resources", "all"])
     ap.add_argument("--out", default="eval/results/latest.json")
     a = ap.parse_args()
     db = SessionLocal()
@@ -252,10 +372,10 @@ def main() -> None:
     path = Path(a.out)
     if path.exists():
         res = {**json.loads(path.read_text()), **res}
-    todo = ["retrieval", "topic", "gate", "pipeline", "translation", "resources"] if a.what == "all" else [a.what]
+    todo = ["retrieval", "topic", "domain", "gate", "pipeline", "translation", "resources"] if a.what == "all" else [a.what]
     for w in todo:
         t = time.time(); print(f"== {w} ...", flush=True)
-        res[w] = {"retrieval": lambda: retrieval_eval(db), "topic": topic_eval, "gate": lambda: gate_eval(db), "pipeline": lambda: pipeline_eval(db),
+        res[w] = {"retrieval": lambda: retrieval_eval(db), "topic": topic_eval, "domain": lambda: domain_eval(db), "gate": lambda: gate_eval(db), "pipeline": lambda: pipeline_eval(db),
                   "translation": translation_eval, "resources": resources_eval}[w]()
         print(json.dumps(res[w], indent=1)[:3500]); print(f"({w} took {time.time() - t:.0f}s)")
         path.parent.mkdir(parents=True, exist_ok=True); path.write_text(json.dumps(res, indent=2))

@@ -64,6 +64,12 @@ class TestCitationValidator:
         assert not v.quote_supported(1, "The seller shall refund […] within ninety days of the demand.")
         assert not v.quote_supported(1, "within fifteen days of the demand. The seller shall refund")  # text reordered without an elision marker is rejected
 
+    def test_generated_sentences_without_valid_citation_are_dropped(self):
+        v = CitationValidator(self.P)
+        kept, dropped = v.require_citations("The seller must refund within fifteen days [S1]. The court always favours consumers. It also awards damages [S9].")
+        assert kept == "The seller must refund within fifteen days [S1]."
+        assert len(dropped) == 2  # an uncited claim and one citing a source that was never retrieved
+
     def test_allowed_url_kept(self):
         r = CitationValidator(self.P).validate("Read https://x.example/a [S1]")
         assert "https://x.example/a" in r.cleaned and r.validity == 1.0
@@ -107,3 +113,67 @@ def test_urgent_contacts_and_clarifying_questions(client, user):
 def test_ask_validation(client, user):
     assert client.post("/api/ask", json={"question": "hi"}).status_code == 422
     assert client.post("/api/ask", json={"question": "valid question here?", "translate_to": "xx"}).status_code == 422
+
+
+def test_legal_language_score_is_advisory_and_only_words_a_decline(client, user, monkeypatch):
+    """CustomInLawBERT's score never blocks a grounded answer (as a hard gate it rejected valid doctrinal questions); it only words a decline."""
+    from app.rag import pipeline
+
+    monkeypatch.setattr(pipeline, "legal_language_check", lambda db, q: {"model": "law-ai/CustomInLawBERT", "score": 0.40, "threshold": 0.62, "looks_legal": False})
+    ok = client.post("/api/ask", json={"question": "Can I get a refund of the price for defective goods from the seller?"}).json()
+    assert ok["status"] == "ok" and ok["citations"] and ok["domain_check"]["looks_legal"] is False  # still answered: evidence is what gates
+    no = client.post("/api/ask", json={"question": "What is the law on interplanetary salvage of asteroid mining rights?"}).json()
+    assert no["status"] == "insufficient_evidence" and "doesn't look like a question about law" in no["message"]
+
+
+def test_topic_identification_uses_real_model_when_installed(models_present):
+    if not models_present:
+        import pytest
+        pytest.skip("model weights not downloaded")
+    from app.rag.pipeline import identify_topic
+
+    t = identify_topic("My landlord has not returned my security deposit after I vacated the flat and handed over the keys.")
+    assert t["model"] == "law-ai/InCaseLawBERT" and t["topic"] == "tenancy" and t["ranked"]
+    t = identify_topic("The shop refuses a refund for a defective laptop under warranty.")
+    assert t["topic"] == "consumer"
+
+
+def test_gate_thresholds_and_roles_are_configured():
+    from app import runtime
+    from app.config import get_settings
+
+    s = get_settings()
+    assert s.min_query_coverage == 0.45 and s.domain_threshold == 0.62 and s.center_embeddings is False
+    assert runtime.RETRIEVAL_COMPONENTS == ["bm25"] or "bm25" in runtime.RETRIEVAL_COMPONENTS  # tests override to BM25-only
+
+
+def test_uncited_generated_answer_falls_back_to_verbatim_excerpts(client, user, monkeypatch):
+    """A free-text generator that ignores the citation rule must never be shown as 'verified'."""
+    from app.rag import pipeline
+
+    class Uncited:
+        name = "local_llm"
+
+        def generate(self, question, passages):
+            return {"text": "Consumers are always entitled to a refund in every case.", "quotes": [], "mode": "local_llm", "note": "generated"}
+
+    monkeypatch.setattr(pipeline, "get_generator", lambda: Uncited())
+    r = client.post("/api/ask", json={"question": "Can I get a refund of the price for defective goods from the seller?"}).json()
+    assert r["status"] == "ok" and r["answer_mode"] == "extractive"
+    assert "always entitled" not in r["answer"] and "no statement that could be tied to a source" in r["answer_note"]
+    assert any("no cited statements" in i for i in r["citation_report"]["issues"])
+
+
+def test_cited_generated_answer_is_kept(client, user, monkeypatch):
+    from app.rag import pipeline
+
+    class Cited:
+        name = "local_llm"
+
+        def generate(self, question, passages):
+            return {"text": "The seller must refund the price within fifteen days of the demand [S1]. Nobody can promise the result.", "quotes": [], "mode": "local_llm", "note": "generated"}
+
+    monkeypatch.setattr(pipeline, "get_generator", lambda: Cited())
+    r = client.post("/api/ask", json={"question": "Can I get a refund of the price for defective goods from the seller?"}).json()
+    assert r["answer_mode"] == "local_llm" and r["answer"] == "The seller must refund the price within fifteen days of the demand [S1]."
+    assert r["citation_report"]["valid"] == 1 and any("1 generated sentence" in i for i in r["citation_report"]["issues"])

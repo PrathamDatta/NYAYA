@@ -139,7 +139,8 @@ class LegalRetriever:
                 h.warnings.append(warn[i])  # type: ignore[arg-type]
             hits.append(h)
         info["bm25_hits"] = len(rankings.get("bm25", []))
-        info["coverage"] = round(query_coverage(idx.bm25, tokens(q), hits), 4)
+        cov_best, cov_union = query_coverage(idx.bm25, tokens(q), hits)
+        info["coverage"], info["coverage_union"] = round(cov_best, 4), round(cov_union, 4)
         return hits, info
 
 
@@ -156,19 +157,20 @@ def get_settings_components() -> list[str]:
     return runtime.RETRIEVAL_COMPONENTS
 
 
-def query_coverage(bm25, q_terms: list[str], hits) -> float:  # noqa: ANN001
-    """IDF-weighted share of the question's content terms found anywhere in the retrieved passages.
+def query_coverage(bm25, q_terms: list[str], hits) -> tuple[float, float]:  # noqa: ANN001
+    """IDF-weighted share of the question's content terms found in the retrieved passages.
 
-    Terms the corpus has never seen are informative-but-absent, so they count against coverage at the maximum IDF.
-    This is what lets the system decline questions the corpus cannot ground ("cryptocurrency mining on the moon")
-    even when a few common words (e.g. "taxation") happen to occur somewhere."""
+    Returns (best_single_passage, union_of_passages). The *best single passage* is the gate: it requires the question's terms to
+    co-occur in one passage, which separated answerable from unrelated questions better than the union (docs/EVALUATION.md).
+    Terms the corpus has never seen count against coverage at the maximum IDF, so "cryptocurrency mining on the moon" fails
+    even if a few common words occur somewhere."""
     terms = set(q_terms)
     if not terms or bm25 is None:
-        return 0.0
+        return 0.0, 0.0
     max_idf = max(bm25.idf.values(), default=1.0)
-    present: set[str] = set()
-    for h in hits:
-        present |= terms & set(tokens(h.text))
     total = sum(bm25.idf.get(t, max_idf) for t in terms)
-    got = sum(bm25.idf.get(t, max_idf) for t in present)
-    return got / total if total else 0.0
+    per_hit = [terms & set(tokens(h.text)) for h in hits]
+    weight = lambda present: sum(bm25.idf.get(t, max_idf) for t in present) / total  # noqa: E731
+    best = max((weight(p) for p in per_hit), default=0.0)
+    union = weight(set().union(*per_hit)) if per_hit else 0.0
+    return best, union

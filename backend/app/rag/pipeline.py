@@ -7,10 +7,11 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from ..config import get_settings
-from ..ml.encoders import CustomLegalNLP
+from ..ml.encoders import CaseLawEncoder, CustomLegalNLP
 from ..ml.registry import ModelUnavailableError
 from .citations import CitationValidator
-from .generator import Passage, get_generator
+from .generator import ExtractiveGenerator, Passage, get_generator
+from .index import get_index
 from .rag_models import encoder
 from .retriever import Filters, LegalRetriever
 from .textutil import tokens
@@ -22,22 +23,41 @@ DISCLAIMER = ("This is legal information drawn from the sources shown, not legal
 
 
 def identify_topic(question: str) -> dict[str, Any]:
-    """Topic via CustomInLawBERT prototype similarity, cross-checked with keyword evidence."""
+    """Topic via InCaseLawBERT prototype similarity (best deployable classifier we measured), cross-checked with keyword evidence."""
     kw = keyword_topic(question)
     out: dict[str, Any] = {"model": None, "ranked": [], "keyword": kw[:2], "topic": kw[0][0] if kw else None, "confidence": "low"}
     try:
-        nlp = encoder("custominlawbert")
-        assert isinstance(nlp, CustomLegalNLP)
+        nlp = encoder("incaselawbert")
+        assert isinstance(nlp, CaseLawEncoder)
         ranked = nlp.classify_topic(question, TOPICS)
-        out["model"] = "law-ai/CustomInLawBERT"
+        out["model"] = "law-ai/InCaseLawBERT"
         out["ranked"] = [(t, round(s, 4)) for t, s in ranked[:3]]
         top = ranked[0][0]
         if kw and kw[0][0] == top:
             out["topic"], out["confidence"] = top, "high"
         elif kw:
-            out["topic"], out["confidence"] = kw[0][0], "medium"  # explicit keywords outrank raw-BERT similarity
+            out["topic"], out["confidence"] = kw[0][0], "medium"  # explicit keywords outrank embedding similarity
         else:
             out["topic"], out["confidence"] = top, "low"
+    except ModelUnavailableError as e:
+        out["model_error"] = e.reason
+    return out
+
+
+def legal_language_check(db: Session, question: str) -> dict[str, Any]:
+    """CustomInLawBERT legal-language score: cosine to the corpus centroid. Advisory; used to word a decline accurately."""
+    out: dict[str, Any] = {"model": None, "score": None, "threshold": get_settings().domain_threshold, "looks_legal": None}
+    try:
+        nlp = encoder("custominlawbert")
+        assert isinstance(nlp, CustomLegalNLP)
+        centroid = get_index(db).centroid("custominlawbert")
+        if centroid is None:
+            out["note"] = "no CustomInLawBERT vectors indexed"
+            return out
+        out["model"] = "law-ai/CustomInLawBERT"
+        out["score"] = round(nlp.legal_language_score(question, centroid), 4)
+        if out["threshold"] is not None:
+            out["looks_legal"] = out["score"] >= out["threshold"]
     except ModelUnavailableError as e:
         out["model_error"] = e.reason
     return out
@@ -53,6 +73,7 @@ class LegalResponsePipeline:
         s = get_settings()
         question = question.strip()
         topic = identify_topic(question)
+        domain = legal_language_check(db, question)
         timings["topic_s"] = round(time.perf_counter() - t0, 3)
 
         t1 = time.perf_counter()
@@ -62,8 +83,8 @@ class LegalResponsePipeline:
         contacts = urgent_contacts(question)
         clarifying = list(QUESTIONS.get(topic["topic"] or "", []))
         resp: dict[str, Any] = {
-            "question": question, "topic": topic, "retrieval": rinfo, "disclaimer": DISCLAIMER,
-            "urgent_contacts": contacts, "clarifying_questions": clarifying, "models_used": self._models_used(rinfo, topic),
+            "question": question, "topic": topic, "domain_check": domain, "retrieval": rinfo, "disclaimer": DISCLAIMER,
+            "urgent_contacts": contacts, "clarifying_questions": clarifying, "models_used": self._models_used(rinfo, topic, domain),
         }
 
         # Evidence sufficiency: the retrieved passages must jointly cover the question's content terms (IDF-weighted),
@@ -71,11 +92,14 @@ class LegalResponsePipeline:
         q_terms = set(tokens(question))
         coverage = rinfo.get("coverage", 0.0)
         hits = [h for h in hits if q_terms & set(tokens(h.text))]
-        if not hits or coverage < s.min_query_coverage:
+        if not hits or coverage < s.min_query_coverage:  # the legal-language score is advisory: it only words the decline
             resp.update({
                 "status": "insufficient_evidence", "answer": None, "citations": [], "sections": {},
-                "message": ("The indexed legal sources do not contain enough to answer this reliably, so no answer is given. "
-                            "Try rephrasing with the Act, section or kind of dispute, or ask a legal-aid clinic."
+                "message": (("This doesn't look like a question about law, so there is nothing in the legal sources to answer it from. "
+                             "If it is a legal question, try describing the dispute and the parties involved."
+                             if domain.get("looks_legal") is False else
+                             "The indexed legal sources do not contain enough to answer this reliably, so no answer is given. "
+                             "Try rephrasing with the Act, section or kind of dispute, or ask a legal-aid clinic.")
                             if rinfo.get("corpus_chunks") else
                             "No legal sources have been ingested yet. See docs/INGESTION.md to load the corpus."),
                 "timings": {**timings, "total_s": round(time.perf_counter() - t0, 3)},
@@ -87,7 +111,19 @@ class LegalResponsePipeline:
         gen = get_generator().generate(question, passages)
         timings["generation_s"] = round(time.perf_counter() - t2, 3)
         validator = CitationValidator([{"n": p.n, "text": p.text, "url": p.url} for p in passages])
+        generation_notes: list[str] = []
+        if gen["mode"] != "extractive":
+            kept, dropped = validator.require_citations(gen["text"])
+            if dropped:
+                generation_notes.append(f"{len(dropped)} generated sentence(s) without a valid citation were removed.")
+            if not kept:  # nothing verifiable survived: fall back openly to the verbatim excerpts
+                gen = {**ExtractiveGenerator().generate(question, passages),
+                       "note": "The text generator produced no statement that could be tied to a source, so verbatim excerpts are shown instead."}
+                generation_notes.append("Generator output discarded: no cited statements.")
+            else:
+                gen = {**gen, "text": kept}
         rep = validator.validate(gen["text"], gen["quotes"])
+        rep.issues.extend(generation_notes)
 
         citations = []
         for i, h in enumerate(hits, start=1):
@@ -127,9 +163,11 @@ class LegalResponsePipeline:
         return steps
 
     @staticmethod
-    def _models_used(rinfo: dict, topic: dict) -> list[dict]:
+    def _models_used(rinfo: dict, topic: dict, domain: dict) -> list[dict]:
         used = [{"model": "law-ai/" + {"inlegalbert": "InLegalBERT", "incaselawbert": "InCaseLawBERT", "custominlawbert": "CustomInLawBERT"}[c],
-                 "role": "retrieval" } for c in rinfo.get("components", []) if c != "bm25" and c not in rinfo.get("skipped", {})]
+                 "role": "retrieval"} for c in rinfo.get("components", []) if c != "bm25" and c not in rinfo.get("skipped", {})]
         if topic.get("model"):
             used.append({"model": topic["model"], "role": "topic identification"})
+        if domain.get("model"):
+            used.append({"model": domain["model"], "role": "legal-language detection"})
         return used

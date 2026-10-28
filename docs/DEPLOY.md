@@ -17,13 +17,13 @@ scripts\cli.bat ingest-sci --year 2023 --limit 40
 scripts\cli.bat ingest-manifest corpus\manifest.json
 ```
 Tips for laptops
-* **8 GB RAM**: set `NYAYA_MEMORY_BUDGET_MB=4500` in `.env`; the translator (≈4.3 GB peak) and the BERTs then swap in and out (first use after a swap costs a model load). `NYAYA_TRANSLATION_QUANTIZE_INT8=true` reduces translator memory — measured effect in `docs/EVALUATION.md`.
+* **8 GB RAM**: set `NYAYA_MEMORY_BUDGET_MB=4800` in `.env`; the translator (≈4.2 GB resident) and the BERTs (≈0.7 GB each) then swap in and out (first use after a swap costs a model load of several seconds). `NYAYA_TRANSLATION_QUANTIZE_INT8=true` makes translation ≈2.5× faster but, as measured, does **not** reduce memory (5.4 GB vs 4.2 GB resident), and its translation quality has not been evaluated. On 8 GB machines the OS and browser also need memory: if swapping is heavy, skip translation.
 * Keep the repo path short (Windows 260-char path limit applies to the Hugging Face cache).
 * Windows may print a symlink warning from huggingface_hub; the scripts set `HF_HUB_DISABLE_SYMLINKS_WARNING=1`. Without Developer Mode, files are copied instead of linked (slightly more disk).
 * Use BitLocker for data-at-rest encryption of uploaded documents.
 * First request after start-up is slow (models load lazily).
 
-> **Verification status:** the setup scripts for Windows (`.ps1`/`.bat`) were written to mirror the Linux flow that *was* executed in CI-like conditions, but they have **not been run on Windows 11** in this build. The Python code paths are OS-neutral (pathlib, no POSIX-only calls except `resource` in the evaluation script). Please report any first-run problem.
+> **Verification status:** `scripts/setup.sh` (the Linux equivalent) was run from a fresh `git clone` on Linux/Python 3.12: it installed the pinned dependencies and CPU PyTorch, applied migrations, and the 49 backend tests passed (model download and UI build were skipped in that run). The Windows scripts (`.ps1`/`.bat`) follow the same steps but have **not been run on Windows 11**. The Python code is OS-neutral (pathlib; the only POSIX-only call, `resource`, is in the evaluation script). Please report any first-run problem.
 
 ## B. Linux/macOS
 `scripts/setup.sh --download-models && scripts/start.sh`.

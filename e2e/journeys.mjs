@@ -48,20 +48,20 @@ async function desktop() {
     if (!(await page.locator("article a", { hasText: "Original source" }).count())) throw new Error("no original-source link on results");
   });
 
-  await step("J2 register, ask a legal question, get cited sources or an explicit decline", async () => {
+  await step("J2 register, ask a corpus-covered legal question, get verified, openable sources", async () => {
     await page.goto(`${BASE}/register`);
     await page.getByLabel("Email").fill(email);
     await page.getByLabel("Password").fill("e2e-password-long-1");
     await page.getByRole("button", { name: "Create account" }).click();
     await page.waitForURL(/\/app\/ask/);
-    await page.getByLabel("Your question").fill("Does a person living in a reserved forest area have a right to be heard by the Forest Officer before eviction?");
+    await page.getByLabel("Your question").fill("Can the High Court re-appreciate evidence in writ jurisdiction under Article 226?");
     await page.getByRole("button", { name: "Send question" }).click();
-    await page.getByRole("heading", { name: "Sources" }).or(page.getByText("don't support an answer")).waitFor({ timeout: 120000 });
+    // This question is covered by the ingested Supreme Court judgments: it must be ANSWERED with openable sources.
+    await page.getByRole("heading", { name: "Sources", exact: true }).waitFor({ timeout: 120000 });
     await page.screenshot({ path: `${OUT}/03-answer.png`, fullPage: true });
-    if (await page.getByRole("heading", { name: "Sources" }).count()) {
-      await page.locator("ul li button[aria-expanded]").first().click();
-      await page.getByText("Open original source").first().waitFor();
-    }
+    await page.getByText(/citations verified/).waitFor();
+    await page.locator("ul li button[aria-expanded]").first().click();
+    await page.getByText("Open original source").first().waitFor();
     await page.waitForURL(/\/app\/ask\/\d+/);
   });
 
@@ -73,8 +73,9 @@ async function desktop() {
   });
 
   await step("J2c history lists conversations and reopens one", async () => {
-    const n = await page.locator('aside[aria-label="Conversation history"] li').count();
-    if (n < 2) throw new Error(`expected >=2 conversations, saw ${n}`);
+    const items = page.locator('aside[aria-label="Conversation history"] li');
+    await page.waitForFunction(() => document.querySelectorAll('aside[aria-label="Conversation history"] li').length >= 2, null, { timeout: 10000 })
+      .catch(async () => { throw new Error(`expected >=2 conversations, saw ${await items.count()}`); });
     await page.locator('aside[aria-label="Conversation history"] li a').nth(1).click();
     await page.locator("article").first().waitFor();
   });

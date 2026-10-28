@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, NavLink, Navigate, Outlet, useLocation } from "react-router-dom";
 import { Briefcase, FileSearch, FileText, Landmark, Languages, LogOut, MessageSquareText, Moon, PenLine, Scale, Settings, Sun, BookOpen, Activity } from "lucide-react";
 import { useAuth } from "../lib/auth";
-import { Spinner } from "./ui";
+import { ErrorBox, Spinner } from "./ui";
 
 export function Logo({ small }: { small?: boolean }) {
   return (
@@ -84,8 +84,9 @@ const appNav = [
 ];
 
 export function AppLayout() {
-  const { user, loading, logout } = useAuth();
+  const { user, loading, error, retry, logout } = useAuth();
   const loc = useLocation();
+  if (error && !user) return <div className="mx-auto max-w-md px-4 py-20"><ErrorBox error={error} onRetry={retry} /></div>;
   if (loading) return <div className="grid min-h-screen place-items-center"><Spinner label="Loading…" /></div>;
   if (!user) return <Navigate to="/login" state={{ from: loc.pathname }} replace />;
   return (

@@ -75,7 +75,7 @@ def _load(spec: ModelSpec, path: Path) -> _TransBundle:
                                                                low_cpu_mem_usage=True)
     device = resolve_device()
     if get_settings().translation_quantize_int8 and device == "cpu":
-        model = torch.quantization.quantize_dynamic(model, {torch.nn.Linear}, dtype=torch.qint8)
+        model = torch.quantization.quantize_dynamic(model, {torch.nn.Linear}, dtype=torch.qint8, inplace=True)
     model.to(device).eval()
     return _TransBundle(DualSPTokenizer(path), model, device)
 

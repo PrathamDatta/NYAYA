@@ -144,6 +144,7 @@ _HDR = re.compile(r"(?i)(?:digital\s+)?supreme\s+court\s+reports|\[\d{4}\]\s*\d+
 
 def clean_title(t: str) -> str:
     t = _HDR.sub(" ", t)
+    t = re.sub(r"(?i)^\s*(?:case details|headnote)\s*[:\-]?\s*", "", t)
     t = re.sub(r"^\s*\d{1,4}\s+(?=[A-Z])", "", t)
     return re.sub(r"\s+", " ", t).strip(" :-") or "Supreme Court of India judgment"
 

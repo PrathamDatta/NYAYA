@@ -16,6 +16,7 @@ import numpy as np
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from ..config import get_settings
 from ..models import ChunkEmbedding, LegalChunk, LegalSource
 from .textutil import BM25, tokens
 
@@ -112,12 +113,21 @@ class CorpusIndex:
                     has[i] = True
             self.raw[key] = mat
             mean = mat[has].mean(0) if has.any() else np.zeros(dim, dtype=np.float32)
-            centred = mat - mean  # BERT vectors are anisotropic; centre with corpus mean, then re-normalise
+            if not get_settings().center_embeddings:
+                mean = np.zeros(dim, dtype=np.float32)  # measured: centring did not help retrieval (docs/EVALUATION.md)
+            centred = mat - mean  # optional: subtract the corpus mean (BERT vectors are anisotropic), then re-normalise
             n = np.linalg.norm(centred, axis=1, keepdims=True)
             centred = centred / np.maximum(n, 1e-9)
             centred[~has] = 0
             self.mats[key] = (centred, has, mean)
         self.stamp = None
+
+    def centroid(self, key: str) -> np.ndarray | None:
+        """Mean of the raw (normalised) passage vectors for one encoder, or None if nothing is embedded."""
+        if key not in self.raw:
+            return None
+        has = self.mats[key][1]
+        return self.raw[key][has].mean(0) if has.any() else None
 
     def ensure_fresh(self, db: Session) -> None:
         st = self.current_stamp(db)

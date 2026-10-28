@@ -1,0 +1,991 @@
+{
+  "generated_at": "2026-10-28T18:30:25.197661+00:00",
+  "retrieval": {
+    "n_queries": 173,
+    "n_judgments": 37,
+    "candidate_chunks": 2653,
+    "results": {
+      "bm25": {
+        "P@5": 0.2566,
+        "R@5": 0.7951,
+        "R@10": 0.8213,
+        "R@10_ci95": [
+          0.779,
+          0.862
+        ],
+        "MRR": 0.9395,
+        "MRR_ci95": [
+          0.908,
+          0.969
+        ],
+        "nDCG@10": 0.8221,
+        "judgment_hit@1": 1.0,
+        "judgment_hit@5": 1.0,
+        "judgment_hit@5_ci95": [
+          1.0,
+          1.0
+        ]
+      },
+      "inlegalbert:raw": {
+        "P@5": 0.2185,
+        "R@5": 0.7076,
+        "R@10": 0.7475,
+        "R@10_ci95": [
+          0.698,
+          0.794
+        ],
+        "MRR": 0.8805,
+        "MRR_ci95": [
+          0.836,
+          0.924
+        ],
+        "nDCG@10": 0.7432,
+        "judgment_hit@1": 0.9538,
+        "judgment_hit@5": 1.0,
+        "judgment_hit@5_ci95": [
+          1.0,
+          1.0
+        ]
+      },
+      "inlegalbert:centred": {
+        "P@5": 0.2139,
+        "R@5": 0.6989,
+        "R@10": 0.7451,
+        "R@10_ci95": [
+          0.695,
+          0.793
+        ],
+        "MRR": 0.8584,
+        "MRR_ci95": [
+          0.812,
+          0.904
+        ],
+        "nDCG@10": 0.7293,
+        "judgment_hit@1": 0.9422,
+        "judgment_hit@5": 0.9711,
+        "judgment_hit@5_ci95": [
+          0.942,
+          0.994
+        ]
+      },
+      "incaselawbert:raw": {
+        "P@5": 0.1977,
+        "R@5": 0.6353,
+        "R@10": 0.6825,
+        "R@10_ci95": [
+          0.628,
+          0.736
+        ],
+        "MRR": 0.7783,
+        "MRR_ci95": [
+          0.718,
+          0.831
+        ],
+        "nDCG@10": 0.6615,
+        "judgment_hit@1": 0.896,
+        "judgment_hit@5": 0.9538,
+        "judgment_hit@5_ci95": [
+          0.919,
+          0.983
+        ]
+      },
+      "incaselawbert:centred": {
+        "P@5": 0.2104,
+        "R@5": 0.6657,
+        "R@10": 0.7174,
+        "R@10_ci95": [
+          0.664,
+          0.768
+        ],
+        "MRR": 0.779,
+        "MRR_ci95": [
+          0.724,
+          0.832
+        ],
+        "nDCG@10": 0.681,
+        "judgment_hit@1": 0.8786,
+        "judgment_hit@5": 0.9653,
+        "judgment_hit@5_ci95": [
+          0.936,
+          0.988
+        ]
+      },
+      "custominlawbert:raw": {
+        "P@5": 0.2104,
+        "R@5": 0.6868,
+        "R@10": 0.7278,
+        "R@10_ci95": [
+          0.675,
+          0.775
+        ],
+        "MRR": 0.8299,
+        "MRR_ci95": [
+          0.775,
+          0.878
+        ],
+        "nDCG@10": 0.7107,
+        "judgment_hit@1": 0.9249,
+        "judgment_hit@5": 0.9653,
+        "judgment_hit@5_ci95": [
+          0.936,
+          0.988
+        ]
+      },
+      "custominlawbert:centred": {
+        "P@5": 0.1988,
+        "R@5": 0.6635,
+        "R@10": 0.7186,
+        "R@10_ci95": [
+          0.666,
+          0.772
+        ],
+        "MRR": 0.7867,
+        "MRR_ci95": [
+          0.725,
+          0.838
+        ],
+        "nDCG@10": 0.6844,
+        "judgment_hit@1": 0.8497,
+        "judgment_hit@5": 0.9653,
+        "judgment_hit@5_ci95": [
+          0.936,
+          0.988
+        ]
+      },
+      "FUSION bm25+inlegalbert": {
+        "P@5": 0.2312,
+        "R@5": 0.7427,
+        "R@10": 0.7839,
+        "R@10_ci95": [
+          0.74,
+          0.827
+        ],
+        "MRR": 0.9313,
+        "MRR_ci95": [
+          0.895,
+          0.965
+        ],
+        "nDCG@10": 0.7911,
+        "judgment_hit@1": 0.9942,
+        "judgment_hit@5": 1.0,
+        "judgment_hit@5_ci95": [
+          1.0,
+          1.0
+        ]
+      },
+      "FUSION bm25+incaselawbert": {
+        "P@5": 0.2277,
+        "R@5": 0.7302,
+        "R@10": 0.7916,
+        "R@10_ci95": [
+          0.746,
+          0.836
+        ],
+        "MRR": 0.882,
+        "MRR_ci95": [
+          0.838,
+          0.925
+        ],
+        "nDCG@10": 0.7633,
+        "judgment_hit@1": 0.9711,
+        "judgment_hit@5": 1.0,
+        "judgment_hit@5_ci95": [
+          1.0,
+          1.0
+        ]
+      },
+      "FUSION bm25+custominlawbert": {
+        "P@5": 0.2301,
+        "R@5": 0.7384,
+        "R@10": 0.7892,
+        "R@10_ci95": [
+          0.745,
+          0.835
+        ],
+        "MRR": 0.8955,
+        "MRR_ci95": [
+          0.853,
+          0.934
+        ],
+        "nDCG@10": 0.7772,
+        "judgment_hit@1": 0.9711,
+        "judgment_hit@5": 0.9942,
+        "judgment_hit@5_ci95": [
+          0.977,
+          1.0
+        ]
+      },
+      "FUSION bm25+inlegalbert+incaselawbert": {
+        "P@5": 0.2266,
+        "R@5": 0.7224,
+        "R@10": 0.7843,
+        "R@10_ci95": [
+          0.74,
+          0.827
+        ],
+        "MRR": 0.8908,
+        "MRR_ci95": [
+          0.849,
+          0.932
+        ],
+        "nDCG@10": 0.764,
+        "judgment_hit@1": 0.9711,
+        "judgment_hit@5": 1.0,
+        "judgment_hit@5_ci95": [
+          1.0,
+          1.0
+        ]
+      },
+      "FUSION bm25+all3": {
+        "P@5": 0.2301,
+        "R@5": 0.7372,
+        "R@10": 0.7834,
+        "R@10_ci95": [
+          0.738,
+          0.825
+        ],
+        "MRR": 0.8846,
+        "MRR_ci95": [
+          0.841,
+          0.926
+        ],
+        "nDCG@10": 0.7626,
+        "judgment_hit@1": 0.9711,
+        "judgment_hit@5": 1.0,
+        "judgment_hit@5_ci95": [
+          1.0,
+          1.0
+        ]
+      },
+      "FUSION dense only (3 encoders)": {
+        "P@5": 0.2139,
+        "R@5": 0.702,
+        "R@10": 0.7427,
+        "R@10_ci95": [
+          0.695,
+          0.789
+        ],
+        "MRR": 0.8534,
+        "MRR_ci95": [
+          0.805,
+          0.902
+        ],
+        "nDCG@10": 0.7247,
+        "judgment_hit@1": 0.9364,
+        "judgment_hit@5": 0.9942,
+        "judgment_hit@5_ci95": [
+          0.977,
+          1.0
+        ]
+      }
+    },
+    "stratified": {
+      "overlap_mean": 0.935,
+      "share_overlap_ge_0.95": 0.832,
+      "low_overlap": {
+        "bm25": {
+          "MRR": 0.858,
+          "R@10": 0.7664,
+          "n": 69
+        },
+        "inlegalbert:raw": {
+          "MRR": 0.795,
+          "R@10": 0.678,
+          "n": 69
+        },
+        "inlegalbert:centred": {
+          "MRR": 0.7735,
+          "R@10": 0.6913,
+          "n": 69
+        },
+        "incaselawbert:raw": {
+          "MRR": 0.6855,
+          "R@10": 0.6242,
+          "n": 69
+        },
+        "incaselawbert:centred": {
+          "MRR": 0.6706,
+          "R@10": 0.6671,
+          "n": 69
+        },
+        "custominlawbert:raw": {
+          "MRR": 0.7015,
+          "R@10": 0.6394,
+          "n": 69
+        },
+        "custominlawbert:centred": {
+          "MRR": 0.642,
+          "R@10": 0.6104,
+          "n": 69
+        },
+        "FUSION bm25+inlegalbert": {
+          "MRR": 0.8386,
+          "R@10": 0.7292,
+          "n": 69
+        },
+        "FUSION bm25+incaselawbert": {
+          "MRR": 0.7835,
+          "R@10": 0.7268,
+          "n": 69
+        },
+        "FUSION bm25+custominlawbert": {
+          "MRR": 0.7911,
+          "R@10": 0.7275,
+          "n": 69
+        },
+        "FUSION bm25+inlegalbert+incaselawbert": {
+          "MRR": 0.8152,
+          "R@10": 0.7377,
+          "n": 69
+        },
+        "FUSION bm25+all3": {
+          "MRR": 0.8092,
+          "R@10": 0.7232,
+          "n": 69
+        },
+        "FUSION dense only (3 encoders)": {
+          "MRR": 0.7639,
+          "R@10": 0.6708,
+          "n": 69
+        }
+      },
+      "high_overlap": {
+        "bm25": {
+          "MRR": 1.0,
+          "R@10": 0.8786,
+          "n": 69
+        },
+        "inlegalbert:raw": {
+          "MRR": 0.926,
+          "R@10": 0.811,
+          "n": 69
+        },
+        "inlegalbert:centred": {
+          "MRR": 0.8986,
+          "R@10": 0.7772,
+          "n": 69
+        },
+        "incaselawbert:raw": {
+          "MRR": 0.8185,
+          "R@10": 0.7367,
+          "n": 69
+        },
+        "incaselawbert:centred": {
+          "MRR": 0.8261,
+          "R@10": 0.7766,
+          "n": 69
+        },
+        "custominlawbert:raw": {
+          "MRR": 0.9248,
+          "R@10": 0.817,
+          "n": 69
+        },
+        "custominlawbert:centred": {
+          "MRR": 0.9053,
+          "R@10": 0.8243,
+          "n": 69
+        },
+        "FUSION bm25+inlegalbert": {
+          "MRR": 0.9891,
+          "R@10": 0.8436,
+          "n": 69
+        },
+        "FUSION bm25+incaselawbert": {
+          "MRR": 0.9316,
+          "R@10": 0.846,
+          "n": 69
+        },
+        "FUSION bm25+custominlawbert": {
+          "MRR": 0.9565,
+          "R@10": 0.8502,
+          "n": 69
+        },
+        "FUSION bm25+inlegalbert+incaselawbert": {
+          "MRR": 0.922,
+          "R@10": 0.8291,
+          "n": 69
+        },
+        "FUSION bm25+all3": {
+          "MRR": 0.9123,
+          "R@10": 0.8448,
+          "n": 69
+        },
+        "FUSION dense only (3 encoders)": {
+          "MRR": 0.8874,
+          "R@10": 0.8158,
+          "n": 69
+        }
+      },
+      "low_overlap_max": 1.0,
+      "high_overlap_min": 1.0
+    },
+    "stress_50pct_words_removed": {
+      "bm25": {
+        "P@5": 0.2451,
+        "R@5": 0.7667,
+        "R@10": 0.8158,
+        "R@10_ci95": [
+          0.774,
+          0.857
+        ],
+        "MRR": 0.9359,
+        "MRR_ci95": [
+          0.901,
+          0.969
+        ],
+        "nDCG@10": 0.8112,
+        "judgment_hit@1": 1.0,
+        "judgment_hit@5": 1.0,
+        "judgment_hit@5_ci95": [
+          1.0,
+          1.0
+        ]
+      },
+      "inlegalbert:raw": {
+        "P@5": 0.1803,
+        "R@5": 0.5917,
+        "R@10": 0.6536,
+        "R@10_ci95": [
+          0.597,
+          0.708
+        ],
+        "MRR": 0.6732,
+        "MRR_ci95": [
+          0.614,
+          0.738
+        ],
+        "nDCG@10": 0.5836,
+        "judgment_hit@1": 0.7457,
+        "judgment_hit@5": 0.9075,
+        "judgment_hit@5_ci95": [
+          0.861,
+          0.948
+        ]
+      },
+      "inlegalbert:centred": {
+        "P@5": 0.1642,
+        "R@5": 0.5447,
+        "R@10": 0.6117,
+        "R@10_ci95": [
+          0.55,
+          0.669
+        ],
+        "MRR": 0.6194,
+        "MRR_ci95": [
+          0.554,
+          0.685
+        ],
+        "nDCG@10": 0.5383,
+        "judgment_hit@1": 0.6936,
+        "judgment_hit@5": 0.9017,
+        "judgment_hit@5_ci95": [
+          0.855,
+          0.942
+        ]
+      },
+      "incaselawbert:raw": {
+        "P@5": 0.1595,
+        "R@5": 0.5368,
+        "R@10": 0.5871,
+        "R@10_ci95": [
+          0.526,
+          0.644
+        ],
+        "MRR": 0.6232,
+        "MRR_ci95": [
+          0.555,
+          0.688
+        ],
+        "nDCG@10": 0.5372,
+        "judgment_hit@1": 0.7341,
+        "judgment_hit@5": 0.8786,
+        "judgment_hit@5_ci95": [
+          0.827,
+          0.925
+        ]
+      },
+      "incaselawbert:centred": {
+        "P@5": 0.1514,
+        "R@5": 0.5118,
+        "R@10": 0.5643,
+        "R@10_ci95": [
+          0.502,
+          0.623
+        ],
+        "MRR": 0.584,
+        "MRR_ci95": [
+          0.52,
+          0.65
+        ],
+        "nDCG@10": 0.5073,
+        "judgment_hit@1": 0.6763,
+        "judgment_hit@5": 0.8844,
+        "judgment_hit@5_ci95": [
+          0.838,
+          0.931
+        ]
+      },
+      "custominlawbert:raw": {
+        "P@5": 0.1249,
+        "R@5": 0.4328,
+        "R@10": 0.48,
+        "R@10_ci95": [
+          0.416,
+          0.55
+        ],
+        "MRR": 0.4754,
+        "MRR_ci95": [
+          0.403,
+          0.54
+        ],
+        "nDCG@10": 0.4116,
+        "judgment_hit@1": 0.578,
+        "judgment_hit@5": 0.7861,
+        "judgment_hit@5_ci95": [
+          0.723,
+          0.844
+        ]
+      },
+      "custominlawbert:centred": {
+        "P@5": 0.0844,
+        "R@5": 0.2784,
+        "R@10": 0.3591,
+        "R@10_ci95": [
+          0.299,
+          0.422
+        ],
+        "MRR": 0.3235,
+        "MRR_ci95": [
+          0.259,
+          0.382
+        ],
+        "nDCG@10": 0.2808,
+        "judgment_hit@1": 0.3988,
+        "judgment_hit@5": 0.6127,
+        "judgment_hit@5_ci95": [
+          0.543,
+          0.688
+        ]
+      },
+      "FUSION bm25+inlegalbert": {
+        "P@5": 0.2208,
+        "R@5": 0.7044,
+        "R@10": 0.7624,
+        "R@10_ci95": [
+          0.714,
+          0.81
+        ],
+        "MRR": 0.8611,
+        "MRR_ci95": [
+          0.813,
+          0.909
+        ],
+        "nDCG@10": 0.7393,
+        "judgment_hit@1": 0.9422,
+        "judgment_hit@5": 0.9942,
+        "judgment_hit@5_ci95": [
+          0.977,
+          1.0
+        ]
+      },
+      "FUSION bm25+incaselawbert": {
+        "P@5": 0.2012,
+        "R@5": 0.6507,
+        "R@10": 0.7202,
+        "R@10_ci95": [
+          0.668,
+          0.769
+        ],
+        "MRR": 0.7952,
+        "MRR_ci95": [
+          0.735,
+          0.851
+        ],
+        "nDCG@10": 0.6852,
+        "judgment_hit@1": 0.9017,
+        "judgment_hit@5": 0.9942,
+        "judgment_hit@5_ci95": [
+          0.977,
+          1.0
+        ]
+      },
+      "FUSION bm25+custominlawbert": {
+        "P@5": 0.2,
+        "R@5": 0.6485,
+        "R@10": 0.7506,
+        "R@10_ci95": [
+          0.698,
+          0.8
+        ],
+        "MRR": 0.7458,
+        "MRR_ci95": [
+          0.688,
+          0.803
+        ],
+        "nDCG@10": 0.6612,
+        "judgment_hit@1": 0.9075,
+        "judgment_hit@5": 0.9884,
+        "judgment_hit@5_ci95": [
+          0.971,
+          1.0
+        ]
+      },
+      "FUSION bm25+inlegalbert+incaselawbert": {
+        "P@5": 0.2046,
+        "R@5": 0.6589,
+        "R@10": 0.7309,
+        "R@10_ci95": [
+          0.681,
+          0.781
+        ],
+        "MRR": 0.7899,
+        "MRR_ci95": [
+          0.733,
+          0.845
+        ],
+        "nDCG@10": 0.683,
+        "judgment_hit@1": 0.896,
+        "judgment_hit@5": 0.9884,
+        "judgment_hit@5_ci95": [
+          0.971,
+          1.0
+        ]
+      },
+      "FUSION bm25+all3": {
+        "P@5": 0.2058,
+        "R@5": 0.6777,
+        "R@10": 0.7303,
+        "R@10_ci95": [
+          0.678,
+          0.778
+        ],
+        "MRR": 0.7966,
+        "MRR_ci95": [
+          0.745,
+          0.853
+        ],
+        "nDCG@10": 0.6831,
+        "judgment_hit@1": 0.9191,
+        "judgment_hit@5": 0.9942,
+        "judgment_hit@5_ci95": [
+          0.977,
+          1.0
+        ]
+      },
+      "FUSION dense only (3 encoders)": {
+        "P@5": 0.1827,
+        "R@5": 0.6069,
+        "R@10": 0.6676,
+        "R@10_ci95": [
+          0.61,
+          0.721
+        ],
+        "MRR": 0.7022,
+        "MRR_ci95": [
+          0.638,
+          0.765
+        ],
+        "nDCG@10": 0.6047,
+        "judgment_hit@1": 0.7746,
+        "judgment_hit@5": 0.9422,
+        "judgment_hit@5_ci95": [
+          0.907,
+          0.971
+        ]
+      }
+    },
+    "note": "Weak supervision: queries are SCR headnote clauses, gold = the judgment paragraph(s) they cite; headnote chunks excluded from the pool."
+  },
+  "topic": {
+    "n_queries": 48,
+    "n_topics": 8,
+    "results": {
+      "inlegalbert:raw": {
+        "accuracy": 0.75,
+        "ci95": [
+          0.625,
+          0.875
+        ]
+      },
+      "inlegalbert:proto_centred": {
+        "accuracy": 0.6875,
+        "ci95": [
+          0.542,
+          0.812
+        ]
+      },
+      "incaselawbert:raw": {
+        "accuracy": 0.7292,
+        "ci95": [
+          0.604,
+          0.854
+        ]
+      },
+      "incaselawbert:proto_centred": {
+        "accuracy": 0.8125,
+        "ci95": [
+          0.708,
+          0.917
+        ]
+      },
+      "custominlawbert:raw": {
+        "accuracy": 0.4375,
+        "ci95": [
+          0.292,
+          0.583
+        ]
+      },
+      "custominlawbert:proto_centred": {
+        "accuracy": 0.4792,
+        "ci95": [
+          0.333,
+          0.625
+        ]
+      },
+      "ENSEMBLE inlegalbert+incaselawbert (proto_centred)": {
+        "accuracy": 0.8125,
+        "ci95": [
+          0.708,
+          0.917
+        ]
+      },
+      "ENSEMBLE inlegalbert+custominlawbert (proto_centred)": {
+        "accuracy": 0.6667,
+        "ci95": [
+          0.542,
+          0.792
+        ]
+      },
+      "ENSEMBLE incaselawbert+custominlawbert (proto_centred)": {
+        "accuracy": 0.7917,
+        "ci95": [
+          0.667,
+          0.896
+        ]
+      },
+      "ENSEMBLE all three (proto_centred)": {
+        "accuracy": 0.7708,
+        "ci95": [
+          0.646,
+          0.875
+        ]
+      },
+      "keyword_baseline": {
+        "accuracy": 0.6875
+      }
+    }
+  },
+  "domain": {
+    "n_legal": 48,
+    "n_unrelated": 20,
+    "results": {
+      "inlegalbert": {
+        "auc": 0.811,
+        "auc_ci95": [
+          0.698,
+          0.916
+        ],
+        "best_threshold": 0.7102,
+        "balanced_accuracy_at_threshold": 0.781,
+        "legal_mean": 0.7443,
+        "unrelated_mean": 0.6849
+      },
+      "incaselawbert": {
+        "auc": 0.787,
+        "auc_ci95": [
+          0.661,
+          0.889
+        ],
+        "best_threshold": 0.6001,
+        "balanced_accuracy_at_threshold": 0.746,
+        "legal_mean": 0.6338,
+        "unrelated_mean": 0.5829
+      },
+      "custominlawbert": {
+        "auc": 0.945,
+        "auc_ci95": [
+          0.884,
+          0.99
+        ],
+        "best_threshold": 0.6233,
+        "balanced_accuracy_at_threshold": 0.904,
+        "legal_mean": 0.7035,
+        "unrelated_mean": 0.5156
+      }
+    }
+  },
+  "gate": {
+    "n_headnote": 120,
+    "n_doctrinal": 12,
+    "n_unrelated": 20,
+    "rules": {
+      "union_top6": {
+        "best": {
+          "threshold": 0.7,
+          "headnote_kept": 1.0,
+          "doctrinal_kept": 0.917,
+          "unrelated_declined": 1.0,
+          "balanced_accuracy": 0.979
+        },
+        "doctrinal_min": 0.599,
+        "doctrinal_median": 1.0,
+        "headnote_p10": 1.0,
+        "unrelated_median": 0.403,
+        "unrelated_max": 0.685
+      },
+      "union_top3": {
+        "best": {
+          "threshold": 0.6,
+          "headnote_kept": 1.0,
+          "doctrinal_kept": 0.833,
+          "unrelated_declined": 0.95,
+          "balanced_accuracy": 0.933
+        },
+        "doctrinal_min": 0.41,
+        "doctrinal_median": 0.745,
+        "headnote_p10": 1.0,
+        "unrelated_median": 0.366,
+        "unrelated_max": 0.667
+      },
+      "best_single": {
+        "best": {
+          "threshold": 0.45,
+          "headnote_kept": 1.0,
+          "doctrinal_kept": 0.917,
+          "unrelated_declined": 1.0,
+          "balanced_accuracy": 0.979
+        },
+        "doctrinal_min": 0.374,
+        "doctrinal_median": 0.752,
+        "headnote_p10": 0.948,
+        "unrelated_median": 0.248,
+        "unrelated_max": 0.421
+      }
+    },
+    "production_rule": {
+      "rule": "best_single",
+      "min_query_coverage": 0.45,
+      "headnote_kept": 1.0,
+      "doctrinal_kept": 0.917,
+      "unrelated_declined": 1.0,
+      "doctrinal_declined": [
+        "Does a person living in a reserved forest area have a right to be heard by the Forest Officer before eviction?"
+      ],
+      "unrelated_still_answered": [],
+      "legal_language_detector_rejects_headnote": 0.0,
+      "legal_language_detector_rejects_doctrinal": 1.0,
+      "legal_language_detector_catches_unrelated": 0.85,
+      "domain_threshold": 0.62
+    }
+  },
+  "pipeline": {
+    "n_queries": 30,
+    "status": {
+      "ok": 30,
+      "insufficient_evidence": 0
+    },
+    "mean_citation_validity": 1.0,
+    "answers_with_invalid_citation": 0,
+    "mean_citations_per_answer": 6.0,
+    "latency_s": {
+      "p50": 0.276,
+      "p95": 0.313,
+      "max": 0.326
+    },
+    "stage_mean_s": {
+      "topic_s": 0.215,
+      "retrieval_s": 0.062,
+      "generation_s": 0.001,
+      "total_s": 0.28
+    },
+    "note": "Warm models, CPU only. The extractive generator quotes retrieved text, so citation validity here measures the pipeline, not a free-text generator."
+  },
+  "translation": {
+    "languages": {
+      "bn": {
+        "mean_s_per_sentence": 2.34,
+        "target_script_share": 1.0,
+        "len_ratio": 0.86
+      },
+      "hi": {
+        "mean_s_per_sentence": 2.35,
+        "target_script_share": 1.0,
+        "len_ratio": 0.95
+      },
+      "mr": {
+        "mean_s_per_sentence": 2.59,
+        "target_script_share": 1.0,
+        "len_ratio": 1.12
+      },
+      "ta": {
+        "mean_s_per_sentence": 3.18,
+        "target_script_share": 1.0,
+        "len_ratio": 1.14
+      },
+      "te": {
+        "mean_s_per_sentence": 2.83,
+        "target_script_share": 1.0,
+        "len_ratio": 0.98
+      },
+      "ml": {
+        "mean_s_per_sentence": 2.91,
+        "target_script_share": 1.0,
+        "len_ratio": 1.05
+      },
+      "pa": {
+        "mean_s_per_sentence": 3.41,
+        "target_script_share": 1.0,
+        "len_ratio": 0.96
+      },
+      "gu": {
+        "mean_s_per_sentence": 2.44,
+        "target_script_share": 1.0,
+        "len_ratio": 0.88
+      },
+      "or": {
+        "mean_s_per_sentence": 2.53,
+        "target_script_share": 1.0,
+        "len_ratio": 1.0
+      }
+    },
+    "note": "No reference translations are available offline, so BLEU/chrF are NOT computed here (the model card reports its own). These numbers check that output is non-empty, in the correct script, and give latency/memory."
+  },
+  "resources": {
+    "inlegalbert": {
+      "load_plus_first_encode_s": 2.9,
+      "peak_rss_mb": 705,
+      "steady_rss_mb": 705,
+      "s_per_passage_warm": 0.01
+    },
+    "incaselawbert": {
+      "load_plus_first_encode_s": 3.1,
+      "peak_rss_mb": 718,
+      "steady_rss_mb": 718,
+      "s_per_passage_warm": 0.01
+    },
+    "custominlawbert": {
+      "load_plus_first_encode_s": 2.8,
+      "peak_rss_mb": 711,
+      "steady_rss_mb": 711,
+      "s_per_passage_warm": 0.01
+    },
+    "inlegaltrans_fp32": {
+      "load_plus_first_translation_s": 9.4,
+      "peak_rss_mb": 4177,
+      "steady_rss_mb": 4162,
+      "s_per_sentence_warm": 1.79
+    },
+    "inlegaltrans_int8_dynamic": {
+      "load_plus_first_translation_s": 15.0,
+      "peak_rss_mb": 5486,
+      "steady_rss_mb": 5353,
+      "s_per_sentence_warm": 0.7
+    },
+    "disk_mb_models_dir": 12153,
+    "host": {
+      "python": "3.12.13",
+      "machine": "x86_64",
+      "cpu_count": 4
+    }
+  }
+}

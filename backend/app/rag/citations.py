@@ -44,6 +44,20 @@ class CitationValidator:
         segs = [seg for seg in re.split(r"\[…\]|\[\.\.\.\]", quote) if _norm(seg)]
         return bool(segs) and all(len(_norm(seg)) >= 8 and _norm(seg) in _norm(p["text"]) for seg in segs)
 
+    def require_citations(self, text: str) -> tuple[str, list[str]]:
+        """For free-text (generated) answers: keep only sentences carrying at least one valid [S#] marker.
+
+        Returns (kept_text, dropped_sentences). An uncited generated claim is not 'verified' just because it has no citations to fail."""
+        kept: list[str] = []
+        dropped: list[str] = []
+        for sent in re.split(r"(?<=[.!?])\s+(?=[A-Z0-9\"'(])|\n+", text):
+            sent = sent.strip()
+            if not sent:
+                continue
+            marks = [int(m) for m in _MARK.findall(sent)]
+            (kept if marks and all(n in self.by_n for n in marks) else dropped).append(sent)
+        return " ".join(kept), dropped
+
     def validate(self, text: str, quotes: list[tuple[int, str]] | None = None) -> Report:
         rep = Report(cleaned=text)
         # 1. markers must reference a shown passage

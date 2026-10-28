@@ -104,3 +104,14 @@ OUT_OF_DOMAIN = [
     "Explain how black holes form.", "Suggest names for a pet parrot.", "How do I repair a leaking kitchen tap?", "What is the distance between Mars and Earth?",
     "Which fertiliser is best for tomato plants?",
 ]
+
+# Short doctrinal questions of the kind a user or lawyer might type. NOT derived from headnotes. Written to be plausibly covered by a general
+# sample of Supreme Court judgments; coverage of each is NOT verified by a lawyer, so this set calibrates the gate but is not ground truth.
+DOCTRINAL = [
+    "Does a person living in a reserved forest area have a right to be heard by the Forest Officer before eviction?",
+    "Can the High Court re-appreciate evidence in writ jurisdiction under Article 226?", "What are the principles for granting bail in a murder case?",
+    "Is a sale deed valid without registration?", "When can the Supreme Court interfere with concurrent findings of fact?",
+    "Can land be acquired without compensation?", "What is the standard of proof for conviction in a criminal appeal?",
+    "Can a suit be dismissed for delay in filing?", "What is the effect of a delay in lodging an FIR?", "When is circumstantial evidence sufficient for conviction?",
+    "What are the limits of appellate interference with an acquittal?", "Can a court condone delay in filing an appeal?",
+]

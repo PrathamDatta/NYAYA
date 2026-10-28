@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     # limits
     max_upload_mb: int = 15
     max_pages: int = 300
-    rate_limit_per_minute: int = 60
+    rate_limit_per_minute: int = 300
     auth_rate_limit_per_minute: int = 10
     request_timeout_s: int = 120
     session_ttl_hours: int = 24 * 7
@@ -46,7 +46,9 @@ class Settings(BaseSettings):
     local_llm_repo: str = "Qwen/Qwen2.5-1.5B-Instruct"
     local_llm_revision: str = ""  # pin a commit SHA when enabling local_llm
     retrieval_top_k: int = 6
-    min_query_coverage: float = 0.5  # IDF-weighted share of query terms found in the retrieved passages; tuned by eval/run_eval.py
+    center_embeddings: bool = False  # subtract corpus mean from dense vectors; off by default because it did not help (measured)
+    domain_threshold: float | None = 0.62  # CustomInLawBERT legal-language cutoff. ADVISORY ONLY (words the decline message); it wrongly rejected short doctrinal questions as a hard gate
+    min_query_coverage: float = 0.45  # IDF-weighted share of query terms found in the single best passage; tuned by eval/run_eval.py
     include_synthetic_corpus: bool = False  # tests only: synthetic fixtures are never searchable in production
 
     @property
