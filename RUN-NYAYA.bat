@@ -80,10 +80,10 @@ if not exist "%VPY%" (
 
 echo  [2/6] Python packages (a few minutes, first run only)
 if not exist ".venv\.deps_ok" (
-  "%VPY%" -m pip install --upgrade pip
-  "%VPY%" -m pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/cpu
+  "%VPY%" -m pip install --upgrade pip >nul 2>nul
+  call :pipretry torch==2.5.1 --index-url https://download.pytorch.org/whl/cpu
   if errorlevel 1 goto :fail
-  "%VPY%" -m pip install -r backend\requirements.txt
+  call :pipretry -r backend\requirements.txt
   if errorlevel 1 goto :fail
   echo ok> ".venv\.deps_ok"
 )
@@ -111,7 +111,7 @@ if errorlevel 1 goto :fail
 echo  [5/6] AI models (about 5.7 GB, first run only - keep this window open)
 if not exist "%ROOT%data" mkdir "%ROOT%data"
 if not exist "%ROOT%data\.models_ok" (
-  "%VPY%" -m app.cli download-models
+  call :cliretry download-models
   if errorlevel 1 goto :fail
   echo ok> "%ROOT%data\.models_ok"
 )
@@ -124,7 +124,7 @@ if not exist "%ROOT%data\.corpus_ok" (
   echo   Press Y to load them now, or S to skip and start right away.
   choice /C YS /N /M "   Load now? [Y/S] "
   if errorlevel 2 goto :start
-  "%VPY%" -m app.cli ingest-sci --year 2023 --limit 15
+  call :cliretry ingest-sci --year 2023 --limit 15
   if errorlevel 1 goto :fail
   echo ok> "%ROOT%data\.corpus_ok"
 )
@@ -151,6 +151,32 @@ set "PY="
 py -3.12 --version >nul 2>nul && set "PY=py -3.12"
 if not defined PY py -3.11 --version >nul 2>nul && set "PY=py -3.11"
 exit /b 0
+
+:pipretry
+REM Downloads can drop on unstable Wi-Fi: retry up to 5 times; pip resumes from its cache.
+set "N=0"
+:pipretry_loop
+set /a N+=1
+"%VPY%" -m pip install --retries 10 --timeout 120 %*
+if not errorlevel 1 exit /b 0
+if %N% GEQ 5 exit /b 1
+echo.
+echo  The connection dropped. Retrying, attempt %N% of 5...
+timeout /t 5 /nobreak >nul
+goto :pipretry_loop
+
+:cliretry
+REM Same idea for the model and judgment downloads (both are safe to repeat and resume).
+set "M=0"
+:cliretry_loop
+set /a M+=1
+"%VPY%" -m app.cli %*
+if not errorlevel 1 exit /b 0
+if %M% GEQ 5 exit /b 1
+echo.
+echo  The connection dropped. Retrying, attempt %M% of 5...
+timeout /t 5 /nobreak >nul
+goto :cliretry_loop
 
 :install
 echo  Installing %~2 - Windows may ask for permission...
