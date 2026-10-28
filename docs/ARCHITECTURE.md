@@ -25,14 +25,15 @@ Browser (React SPA)  ──HTTPS/JSON──▶  FastAPI app (single process, lap
 
 ## Pipeline (`LegalResponsePipeline`)
 
-1. Normalise the question; light lay→legal expansion (lexical only).
-2. Topic: `CustomLegalNLP.classify_topic` (CustomInLawBERT prototype similarity) cross-checked with keywords.
+1. Normalise the question; stem words (robbed/robbery/robber match); light lay→legal expansion.
+2. Understand what happened: an offence lexicon (robbed → robbery/theft, hit → hurt/assault, …) and an InCaseLawBERT topic classifier cross-checked with keywords give an **area of law** (shown for every question, labelled as general orientation, not drawn from the library). The recognised offence/area adds *specific* legal vocabulary to the retrieval query (robbed → robbery, dacoity, theft…).
 3. `LegalRetriever.search`: filters (type, year, jurisdiction, **as-of date**, historical flag) → BM25 + InLegalBERT + InCaseLawBERT rankings → RRF.
 4. Temporal validation from stored status/effective dates only; unverified status is surfaced as a warning.
 5. Evidence gate (coverage) → decline with an explicit message, or continue.
 6. `LegalAnswerGenerator` (extractive | local_llm).
 7. `CitationValidator`: markers, quotation segments, URLs, statutory references.
-8. Structured response: answer, citations with pinpoints and provenance, uncertainties, clarifying questions, next steps, urgent contacts, disclaimer, models used, timings.
+8. Even when the library cannot answer: the area of law, urgent contacts, next steps and the **closest sources** (only passages containing a distinctive term from the description; else an overview of what the library holds) are still shown, labelled as a weak match.
+9. Structured response: answer, citations with pinpoints and provenance, uncertainties, clarifying questions, next steps, urgent contacts, disclaimer, models used, timings.
 
 ## Database
 

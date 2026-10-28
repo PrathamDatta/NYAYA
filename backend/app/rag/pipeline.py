@@ -15,7 +15,7 @@ from .index import get_index
 from .rag_models import encoder
 from .retriever import Filters, LegalRetriever
 from .textutil import tokens
-from .topics import QUESTIONS, TOPICS, keyword_topic, urgent_contacts
+from .topics import QUESTIONS, TOPICS, area_of_law, concept_terms, keyword_topic, urgent_contacts
 
 DISCLAIMER = ("This is legal information drawn from the sources shown, not legal advice. It may be incomplete or out of date, "
               "and it does not predict how any court or authority will decide your matter. Please consult a qualified "
@@ -77,15 +77,27 @@ class LegalResponsePipeline:
         timings["topic_s"] = round(time.perf_counter() - t0, 3)
 
         t1 = time.perf_counter()
-        hits, rinfo = self.retriever.search(db, question, filters)
+        concepts = concept_terms(question, topic["topic"], topic["confidence"])
+        hits, rinfo = self.retriever.search(db, question, filters, concepts=concepts)
         timings["retrieval_s"] = round(time.perf_counter() - t1, 3)
 
+        # "Nearest" sources must contain a DISTINCTIVE term from what the user described (or its legal equivalent), so an unrelated passage is
+        # never offered just because it ranked first. If none qualifies, the response says so and shows what the library holds instead.
+        bm25 = get_index(db).bm25
+        idf = bm25.idf if bm25 else {}
+        core = {t for t in set(tokens(question)) | set(tokens(" ".join(concepts[:4]))) if idf.get(t, 0.0) >= 3.5}
+        nearest = [self._citation(i, h) for i, h in enumerate([h for h in hits if core & set(tokens(h.text))][:3], start=1)]
         contacts = urgent_contacts(question)
-        clarifying = list(QUESTIONS.get(topic["topic"] or "", []))
+        area = area_of_law(question, topic["topic"], topic["confidence"], domain.get("looks_legal"))
+        clarifying = list(QUESTIONS.get(area.get("key") or "", []))  # follow the SAME area the user is shown, not the raw embedding guess
         resp: dict[str, Any] = {
             "question": question, "topic": topic, "domain_check": domain, "retrieval": rinfo, "disclaimer": DISCLAIMER,
             "urgent_contacts": contacts, "clarifying_questions": clarifying, "models_used": self._models_used(rinfo, topic, domain),
+            "area_of_law": area,
+            "nearest_sources": nearest,
         }
+        if not nearest:  # nothing is lexically or semantically close: say so, and show what the library does contain
+            resp["library_overview"] = self._library_overview(db)
 
         # Evidence sufficiency: the retrieved passages must jointly cover the question's content terms (IDF-weighted),
         # and every passage we cite must itself share vocabulary with the question.
@@ -94,7 +106,7 @@ class LegalResponsePipeline:
         hits = [h for h in hits if q_terms & set(tokens(h.text))]
         if not hits or coverage < s.min_query_coverage:  # the legal-language score is advisory: it only words the decline
             resp.update({
-                "status": "insufficient_evidence", "answer": None, "citations": [], "sections": {},
+                "status": "insufficient_evidence", "answer": None, "citations": [], "sections": {"next_steps": self._next_steps(area.get("key"), contacts)},
                 "message": (self._decline_message(db) if rinfo.get("corpus_chunks") else
                             "No legal sources have been ingested yet. See docs/INGESTION.md to load the corpus."),
                 "timings": {**timings, "total_s": round(time.perf_counter() - t0, 3)},
@@ -120,16 +132,7 @@ class LegalResponsePipeline:
         rep = validator.validate(gen["text"], gen["quotes"])
         rep.issues.extend(generation_notes)
 
-        citations = []
-        for i, h in enumerate(hits, start=1):
-            src = h.source
-            citations.append({
-                "n": i, "title": src["title"], "doc_type": src["doc_type"], "identifier": src["identifier"],
-                "authority": src["authority"], "jurisdiction": src["jurisdiction"], "ref": h.ref_label,
-                "pages": [h.page_start, h.page_end], "url": src["source_url"], "publication_date": src["publication_date"],
-                "status": src["status"], "synthetic": src["is_synthetic"], "version": src["version"],
-                "ingested_at": src["ingested_at"], "excerpt": h.text[:700], "warnings": h.warnings,
-            })
+        citations = [self._citation(i, h) for i, h in enumerate(hits, start=1)]
         uncertainties = ["The answer is limited to the passages retrieved; other provisions or later amendments may apply.",
                          "Jurisdiction, dates and the specific facts of your case can change the outcome."]
         if rep.issues:
@@ -141,11 +144,36 @@ class LegalResponsePipeline:
             "status": "ok", "answer": rep.cleaned, "answer_mode": gen["mode"], "answer_note": gen["note"], "citations": citations,
             "citation_report": rep.public(),
             "sections": {"uncertainties": uncertainties,
-                         "next_steps": self._next_steps(topic["topic"], contacts),
+                         "next_steps": self._next_steps(area.get("key"), contacts),
                          "professional_advice": "Because this involves your rights and deadlines, please have a qualified advocate review the specifics before you act."},
             "timings": {**timings, "total_s": round(time.perf_counter() - t0, 3)},
         })
         return resp
+
+    @staticmethod
+    def _library_overview(db: Session) -> dict[str, Any]:
+        from sqlalchemy import func, select
+
+        from ..models import LegalSource
+
+        base = select(LegalSource).where(LegalSource.status != "archived")
+        if not get_settings().include_synthetic_corpus:
+            base = base.where(LegalSource.is_synthetic.is_(False))
+        total = db.scalar(select(func.count()).select_from(base.subquery())) or 0
+        rows = db.scalars(base.order_by(LegalSource.id.desc()).limit(5)).all()
+        return {"total": total, "examples": [{"title": r.title, "doc_type": r.doc_type, "identifier": r.identifier} for r in rows],
+                "note": "Nothing in the library is close to this description. This is what it currently contains."}
+
+    @staticmethod
+    def _citation(n: int, h) -> dict[str, Any]:  # noqa: ANN001
+        src = h.source
+        return {
+            "n": n, "title": src["title"], "doc_type": src["doc_type"], "identifier": src["identifier"],
+            "authority": src["authority"], "jurisdiction": src["jurisdiction"], "ref": h.ref_label,
+            "pages": [h.page_start, h.page_end], "url": src["source_url"], "publication_date": src["publication_date"],
+            "status": src["status"], "synthetic": src["is_synthetic"], "version": src["version"],
+            "ingested_at": src["ingested_at"], "excerpt": h.text[:700], "warnings": h.warnings,
+        }
 
     @staticmethod
     def _decline_message(db: Session) -> str:

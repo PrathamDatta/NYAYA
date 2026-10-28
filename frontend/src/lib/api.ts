@@ -55,6 +55,9 @@ export interface AskResponse {
   sections: { uncertainties?: string[]; next_steps?: string[]; professional_advice?: string };
   clarifying_questions: string[]; urgent_contacts: { label: string; number: string }[]; disclaimer: string;
   models_used: { model: string; role: string }[]; timings: Record<string, number>;
+  area_of_law?: { key?: string | null; label: string; laws: string[]; offences: { offence: string; note: string }[]; confidence: string; closest_guess?: string | null; note: string; source: string };
+  nearest_sources?: Citation[];
+  library_overview?: { total: number; note: string; examples: { title: string; doc_type: string; identifier: string }[] };
   translation?: { translation: string; language: string; disclaimer: string; seconds: number }; translation_error?: string;
 }
 export interface Hit { chunk_id: number; score: number; text: string; ref_label: string; page_start: number | null; page_end: number | null; source: Source & { is_synthetic?: boolean }; warnings: string[]; ranks: Record<string, number> }

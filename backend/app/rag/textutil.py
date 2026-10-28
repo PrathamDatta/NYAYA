@@ -11,8 +11,24 @@ there their his her he she they them we you your our i me my also other any one 
 _TOK = re.compile(r"[a-z0-9]+(?:[-'][a-z0-9]+)*")
 
 
+_SUFFIXES = ("ations", "ation", "ings", "ing", "edly", "ied", "ies", "ers", "ery", "er", "ed", "es", "s", "ly")
+
+
+def stem(w: str) -> str:
+    """Tiny suffix stripper so robbed / robbery / robbing / robber all match. Applied identically to documents and queries."""
+    if len(w) <= 3 or not w.isalpha():
+        return w
+    for suf in _SUFFIXES:
+        if w.endswith(suf) and len(w) - len(suf) >= 3:
+            w = w[: -len(suf)] + ("y" if suf in ("ied", "ies") else "")
+            break
+    if len(w) > 3 and w[-1] == w[-2] and w[-1] not in "aeiou":  # robb -> rob
+        w = w[:-1]
+    return w
+
+
 def tokens(text: str) -> list[str]:
-    return [t for t in _TOK.findall(text.lower()) if t not in STOP and len(t) > 1]
+    return [stem(t) for t in _TOK.findall(text.lower()) if t not in STOP and len(t) > 1]
 
 
 def norm_ws(text: str) -> str:

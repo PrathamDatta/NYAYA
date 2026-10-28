@@ -216,8 +216,10 @@ def gate_eval(db) -> dict:
     Three coverage definitions are compared; the production rule is the best-single-passage coverage."""
     from app import runtime
     from app.config import get_settings
+    from app.rag.pipeline import identify_topic
     from app.rag.retriever import Filters, LegalRetriever
     from app.rag.textutil import tokens as tk
+    from app.rag.topics import concept_terms
 
     from .data import DOCTRINAL
 
@@ -229,7 +231,8 @@ def gate_eval(db) -> dict:
     def scores(texts: list[str]) -> dict[str, list[float]]:
         out: dict[str, list[float]] = {"union_top6": [], "union_top3": [], "best_single": []}
         for t in texts:
-            hits, _ = r.search(db, t, Filters(), top_k=6)
+            tp = identify_topic(t)  # mirror production: retrieval is enriched with legal vocabulary for the recognised offence/area
+            hits, _ = r.search(db, t, Filters(), top_k=6, concepts=concept_terms(t, tp["topic"], tp["confidence"]))
             terms = set(tk(t))
             tot = sum(idx.bm25.idf.get(x, mx) for x in terms) or 1  # type: ignore[union-attr]
 

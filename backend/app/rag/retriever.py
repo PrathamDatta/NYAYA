@@ -63,7 +63,7 @@ class LegalRetriever:
         return get_settings_components()
 
     def search(self, db: Session, query: str, filters: Filters | None = None, top_k: int | None = None,
-               components: Sequence[str] | None = None) -> tuple[list[Hit], dict]:
+               components: Sequence[str] | None = None, concepts: Sequence[str] | None = None) -> tuple[list[Hit], dict]:
         s = get_settings()
         filters = filters or Filters()
         top_k = top_k or s.retrieval_top_k
@@ -73,6 +73,7 @@ class LegalRetriever:
         if not idx.chunk_ids:
             return [], info
         q, extra = normalise_query(query)
+        extra = [*extra, *(concepts or [])]
         info["expansion"] = extra
         as_of = filters.as_of or date.today()
 
@@ -108,7 +109,7 @@ class LegalRetriever:
             rankings["bm25"], raw["bm25"] = order, {i: sc[i] for i in order}
         for key in (c for c in comps if c != "bm25"):
             try:
-                qv = embed_texts(key, [q])[0]  # same pooling/normalisation as the stored vectors
+                qv = embed_texts(key, [q + (". " + " ".join(concepts) if concepts else "")])[0]  # same pooling/normalisation as the stored vectors
             except ModelUnavailableError as e:
                 info["skipped"][key] = e.reason
                 continue

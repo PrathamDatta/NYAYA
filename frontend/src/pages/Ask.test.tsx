@@ -50,4 +50,21 @@ describe("AnswerCard", () => {
     fireEvent.click(screen.getByRole("button", { name: "When did you buy it?" }));
     expect(onAsk).toHaveBeenCalledWith("When did you buy it?");
   });
+  it("always shows which area of law it comes under, with offence names and governing Acts", () => {
+    view({ ...base, area_of_law: { label: "Criminal law", laws: ["Bharatiya Nyaya Sanhita, 2023 (the offences)"], offences: [{ offence: "Hurt and assault (offences against the human body)", note: "Indian law does not use the term battery." }], confidence: "medium", note: "For events on or after 1 July 2024 the BNS applies.", source: "General orientation by the app — NOT drawn from the loaded legal library." } });
+    expect(screen.getByText("This comes under")).toBeInTheDocument();
+    expect(screen.getByText("Criminal law")).toBeInTheDocument();
+    expect(screen.getByText(/Hurt and assault/)).toBeInTheDocument();
+    expect(screen.getByText(/NOT drawn from the loaded legal library/)).toBeInTheDocument();
+  });
+  it("when the library cannot answer it still shows the closest sources, labelled as a weak match", () => {
+    view({ ...base, status: "insufficient_evidence", answer: null, citations: [], message: "No answer.", nearest_sources: [{ ...base.citations[0], title: "Nearest Case v. State" }] });
+    expect(screen.getByText(/weak match — not an answer to your question/)).toBeInTheDocument();
+    expect(screen.getByText("Nearest Case v. State")).toBeInTheDocument();
+  });
+  it("with nothing close it shows what the library holds instead of a blank", () => {
+    view({ ...base, status: "insufficient_evidence", answer: null, citations: [], message: "No answer.", library_overview: { total: 2, note: "Nothing in the library is close.", examples: [{ title: "Some Judgment", doc_type: "judgment", identifier: "X1" }] } });
+    expect(screen.getByText("Nothing in the library is close.")).toBeInTheDocument();
+    expect(screen.getByText("Some Judgment")).toBeInTheDocument();
+  });
 });

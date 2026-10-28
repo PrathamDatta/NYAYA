@@ -145,7 +145,7 @@ def test_gate_thresholds_and_roles_are_configured():
     from app.config import get_settings
 
     s = get_settings()
-    assert s.min_query_coverage == 0.45 and s.domain_threshold == 0.62 and s.center_embeddings is False
+    assert s.min_query_coverage == 0.6 and s.domain_threshold == 0.62 and s.center_embeddings is False
     assert runtime.RETRIEVAL_COMPONENTS == ["bm25"] or "bm25" in runtime.RETRIEVAL_COMPONENTS  # tests override to BM25-only
 
 
@@ -179,3 +179,89 @@ def test_cited_generated_answer_is_kept(client, user, monkeypatch):
     r = client.post("/api/ask", json={"question": "Can I get a refund of the price for defective goods from the seller?"}).json()
     assert r["answer_mode"] == "local_llm" and r["answer"] == "The seller must refund the price within fifteen days of the demand [S1]."
     assert r["citation_report"]["valid"] == 1 and any("1 generated sentence" in i for i in r["citation_report"]["issues"])
+
+
+class TestAreaOfLaw:
+    """A layman describes what happened; the app must say which area of law it falls under, without inventing certainty."""
+
+    def test_offence_names_for_everyday_descriptions(self):
+        from app.rag.topics import area_of_law
+
+        r = area_of_law("i got robbed yesterday", None, "low")
+        assert r["label"] == "Criminal law" and r["offences"][0]["offence"].startswith("Robbery") and "Bharatiya Nyaya Sanhita" in " ".join(r["laws"])
+        assert "1 July 2024" in r["note"]
+        h = area_of_law("someone hit me in a fight outside my house", "cyber_fraud", "low")  # wrong low-confidence embedding guess is overridden
+        assert h["label"] == "Criminal law" and h["offences"][0]["offence"].startswith("Hurt and assault") and "battery" in h["offences"][0]["note"]
+        assert any(o["offence"].startswith("Stalking") for o in area_of_law("a man keeps following me and sending messages", "cyber_fraud", "low")["offences"])
+
+    def test_civil_areas_name_the_governing_acts(self):
+        from app.rag.topics import area_of_law
+
+        r = area_of_law("my landlord kept my deposit", "tenancy", "high")
+        assert r["label"].startswith("Landlord") and any("Transfer of Property Act" in x for x in r["laws"]) and not r["offences"]
+        assert any("Consumer Protection Act" in x for x in area_of_law("shop will not refund", "consumer", "medium")["laws"])
+
+    def test_confident_cyber_or_family_topic_is_kept_when_offence_words_also_match(self):
+        from app.rag.topics import area_of_law
+
+        assert area_of_law("they cheated me online", "cyber_fraud", "high")["label"] == "Cyber crime and online fraud"
+        assert area_of_law("my husband beats me for dowry", "family", "high")["label"].startswith("Family law")
+
+    def test_no_invented_area_when_nothing_is_clear(self):
+        from app.rag.topics import area_of_law
+
+        r = area_of_law("what is the capital of australia", "contract", "low", looks_legal=False)
+        assert r["label"] == "This doesn't look like a legal matter" and r["laws"] == [] and r["closest_guess"].startswith("Contract")
+        assert area_of_law("something happened", "contract", "low")["label"].startswith("Area of law not clear")
+
+    def test_dowry_is_not_also_called_stalking(self):
+        from app.rag.topics import classify_offences
+
+        names = [o["offence"] for o in classify_offences("my husband beats me and his parents harass me for dowry")]
+        assert any("dowry" in n.lower() for n in names) and not any(n.startswith("Stalking") for n in names)
+
+
+def test_every_answer_shows_area_of_law_and_nearest_sources(client, user):
+    """Never an empty screen: even when the library cannot answer, the user gets an area of law, urgent contacts and the closest sources."""
+    r = client.post("/api/ask", json={"question": "i got robbed yesterday"}).json()
+    assert r["area_of_law"]["label"] == "Criminal law" and r["area_of_law"]["offences"]
+    assert any(c["number"] == "112" for c in r["urgent_contacts"]) and r["sections"]["next_steps"]
+    assert r["status"] in ("ok", "insufficient_evidence")
+    # never an empty screen: nearest passages, or (when nothing is close) an honest overview of what the library holds
+    assert r["nearest_sources"] or r["library_overview"]["total"] >= 1
+
+
+def test_stemming_connects_lay_and_legal_forms_of_a_word():
+    from app.rag.textutil import stem, tokens
+
+    assert len({stem(w) for w in ("robbed", "robbery", "robbing", "robber", "robbers")}) == 1
+    assert tokens("tenants evicted") == [stem("tenants"), stem("evicted")] and stem("landlords") == stem("landlord")
+    assert stem("hearing") == stem("hearings") and stem("court") == stem("courts")
+
+
+def test_concept_terms_translate_lay_words_into_specific_legal_vocabulary():
+    from app.rag.topics import concept_terms
+
+    c = concept_terms("i got robbed yesterday", None, "low")
+    assert {"robbery", "dacoity", "theft"} <= set(c)
+    assert not ({"property", "force", "fear"} & set(c))  # generic words drown out the rare, specific ones
+    assert {"lessor", "lessee", "tenancy"} <= set(concept_terms("my landlord kept my deposit", "tenancy", "high"))
+
+
+def test_nearest_sources_must_contain_a_distinctive_term_from_the_question(client, user):
+    """A passage is only offered as 'nearest' if it shares a distinctive term with what was described; otherwise say what the library holds."""
+    r = client.post("/api/ask", json={"question": "my landlord kept my security deposit after I vacated the premises"}).json()
+    for c in r["nearest_sources"]:
+        assert any(w in c["excerpt"].lower() for w in ("deposit", "lessor", "lessee", "tenan", "landlord", "premises", "vacat"))
+    q = client.post("/api/ask", json={"question": "zebra xylophone quasar"}).json()
+    assert q["nearest_sources"] == [] and q["library_overview"]["total"] >= 1
+
+
+def test_follow_up_questions_match_the_area_shown_to_the_user(client, user):
+    """A robbery victim must be asked about the police report, not about a product purchase."""
+    r = client.post("/api/ask", json={"question": "i got robbed yesterday"}).json()
+    assert r["area_of_law"]["key"] == "criminal"
+    qs = " ".join(r["clarifying_questions"]).lower()
+    assert "fir" in qs or "police" in qs and "purchase" not in qs and "buy" not in qs
+    t = client.post("/api/ask", json={"question": "my landlord has not returned my security deposit"}).json()
+    assert t["area_of_law"]["key"] == "tenancy" and "rent agreement" in " ".join(t["clarifying_questions"]).lower()

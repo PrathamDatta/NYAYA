@@ -9,7 +9,7 @@ Classification: **V** = implemented and verified (by tests or a real run describ
 | 1 | Original application audit | **V** | `docs/AUDIT.md`. The repository was empty (single "Remove project" commit); the live site was audited from its served bundle. |
 | 2 | Architecture and technology choices | **V** | `docs/ARCHITECTURE.md` |
 | 3 | Redesigned UI (landing, auth, ask, library, documents, drafts, cases, translate, aid, settings, status, policies) | **V** | 13/13 Playwright journeys (desktop + 390 px mobile), 14 Vitest tests, eslint/tsc clean, production build. Dark mode and reduced-motion implemented; a formal accessibility audit (axe/screen-reader) was **not** run. |
-| 4 | Backend: auth, isolation, validation, rate limits, errors | **V** | 55 pytest tests incl. cross-user isolation, CSRF, malicious uploads, rate limiting, account deletion |
+| 4 | Backend: auth, isolation, validation, rate limits, errors | **V** | 65 pytest tests incl. cross-user isolation, CSRF, malicious uploads, rate limiting, account deletion |
 | 5 | Database schema + migrations | **V** (SQLite) / **P** (PostgreSQL) | Migration `0001` applied from scratch in tests and in a clean clone. PostgreSQL never run. |
 | 6 | Four Law-AI models integrated at pinned revisions | **V** | Real weights loaded and run; roles chosen by measurement (`docs/MODELS.md`, `docs/EVALUATION.md`) |
 | 7 | Translation, 9 languages | **V** for functioning, script and latency; **P** for quality | All nine languages produce target-script output on real weights. No reference translations offline, so BLEU/chrF were **not** measured here. |
@@ -28,12 +28,12 @@ Classification: **V** = implemented and verified (by tests or a real run describ
 
 | Check | Result |
 |---|---|
-| `pytest` (backend, `backend/tests`) | **55 passed** |
+| `pytest` (backend, `backend/tests`) | **65 passed** |
 | `ruff check .` (backend) | clean |
 | `mypy app` | no issues in 38 source files |
 | `npm run lint` (eslint, max-warnings 0) | clean |
 | `npm run typecheck` (tsc) | clean |
-| `npm test` (Vitest) | **14 passed** |
+| `npm test` (Vitest) | **17 passed** |
 | `npm run build` (frontend production build) | succeeds; JS 282 kB (84 kB gzip), CSS 30 kB |
 | Playwright journeys (`e2e/journeys.mjs`) | **13/13 passed in 5 consecutive runs** against a live server with the real corpus and real models (server started with `NYAYA_AUTH_RATE_LIMIT_PER_MINUTE=1000`; with the default 10/min, repeated runs within a minute are correctly throttled and fail on registration) |
 | Clean-clone install (`scripts/setup.sh` + pytest) | succeeded (49 tests at that time) |
@@ -46,7 +46,8 @@ Defects found and fixed *during* verification (so you know what testing actually
 1. **No statutes are bundled or ingested.** India Code PDF downloads redirected to an error page for automated clients from the build environment, and statute text must not be written from memory. Until you ingest Acts from official PDFs (`docs/INGESTION.md`), the system can only cite the sampled judgments and drafts will report their authorities as "not found in corpus". Statute chunking was tested only on synthetic fixtures; real India Code PDFs may need chunker tuning.
 2. **The corpus is a small sample** (60 of ~700+ judgments from one year) and is not auto-updated.
 3. **Retrieval benchmark is weak and lexical.** Gold labels come from headnote → cited paragraph; 83% of queries share ≥95% of words with the gold passage. BM25 alone scored highest; the default fuses InLegalBERT (best encoder) as an unproven safety net for paraphrase. Real lay-question → statute retrieval is **unmeasured**.
-4. **Gate trade-off.** Lay phrasings whose terms are spread over several passages can be declined (one of 12 doctrinal test questions was), and one in-corpus test showed an unrelated question can still pass if it shares enough rare words. Near-domain questions the corpus lacks (e.g. tenancy law) are not covered by the calibration sets.
+4. **Gate trade-off.** At the shipped threshold all 20 unrelated test questions are declined and every headnote question is kept, but 2 of 12 doctrinal test questions are declined. A declined question still shows the area of law, urgent contacts, next steps and the closest sources. Near-domain questions the corpus lacks (e.g. tenancy law) are not covered by the calibration sets.
+4a. **"Area of law" is general orientation, not retrieval.** It comes from an offence lexicon, a topic classifier (0.81 accuracy on 48 synthetic questions) and a curated list of governing Acts (names only, no section numbers). It can be wrong, is labelled as not drawn from the library, and was checked only on a handful of everyday descriptions. The "nearest sources" for a lay description are often only loosely related because the library is a 60-judgment sample.
 5. **Legal-language detector** (CustomInLawBERT) is advisory only; its threshold is corpus-specific.
 6. **Published MLM heads** of InLegalBERT and CustomInLawBERT do not work (measured); only encoder outputs are used.
 7. **Translation quality is unverified here**; Odia is the weakest language per the model card. No glossary of legal terms or entity protection (`IndicProcessor` placeholders) is implemented, so names/numbers could be altered.

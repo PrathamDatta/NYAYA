@@ -48,7 +48,7 @@ class Settings(BaseSettings):
     retrieval_top_k: int = 6
     center_embeddings: bool = False  # subtract corpus mean from dense vectors; off by default because it did not help (measured)
     domain_threshold: float | None = 0.62  # CustomInLawBERT legal-language cutoff. ADVISORY ONLY (words the decline message); it wrongly rejected short doctrinal questions as a hard gate
-    min_query_coverage: float = 0.45  # IDF-weighted share of query terms found in the single best passage; tuned by eval/run_eval.py
+    min_query_coverage: float = 0.6  # IDF-weighted share of query terms found in the single best passage; tuned by eval/run_eval.py
     include_synthetic_corpus: bool = False  # tests only: synthetic fixtures are never searchable in production
 
     @property

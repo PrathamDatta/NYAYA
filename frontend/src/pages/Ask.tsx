@@ -68,17 +68,50 @@ function TranslatePanel({ r }: { r: AskResponse }) {
   );
 }
 
+function AreaPanel({ a }: { a: NonNullable<AskResponse["area_of_law"]> }) {
+  return (
+    <section aria-label="Area of law" className="rounded-lg border border-brass/40 bg-brass-soft p-4">
+      <p className="text-xs font-semibold uppercase tracking-wider text-brass">This comes under</p>
+      <h3 className="mt-0.5 text-xl font-semibold text-ink">{a.label}</h3>
+      {a.offences.length > 0 && (
+        <ul className="mt-2 space-y-1">{a.offences.map((o) => <li key={o.offence} className="text-sm"><b>{o.offence}</b>{o.note && <span className="text-muted"> — {o.note}</span>}</li>)}</ul>
+      )}
+      {a.closest_guess && <p className="mt-2 text-sm"><span className="text-muted">Closest guess (low confidence): </span>{a.closest_guess}</p>}
+      {a.laws.length > 0 && <p className="mt-2 text-sm"><span className="text-muted">Usually governed by: </span>{a.laws.join(" · ")}</p>}
+      {a.note && <p className="mt-2 text-sm text-muted">{a.note}</p>}
+      <p className="mt-2 text-xs text-muted">{a.source}</p>
+    </section>
+  );
+}
+
 export function AnswerCard({ r, onAsk }: { r: AskResponse; onAsk: (q: string) => void }) {
   const [how, setHow] = useState(false);
   return (
     <div className="space-y-4">
+      {r.area_of_law && <AreaPanel a={r.area_of_law} />}
       {r.urgent_contacts.length > 0 && (
         <Alert kind="error" title="If this is urgent, call now">
           <ul className="mt-1 flex flex-wrap gap-2">{r.urgent_contacts.map((c) => <li key={c.number}><a className="inline-flex items-center gap-1.5 rounded-lg bg-surface px-3 py-2 font-semibold text-ink" href={`tel:${c.number}`}><Phone className="h-4 w-4" aria-hidden />{c.label}: {c.number}</a></li>)}</ul>
         </Alert>
       )}
       {r.status === "insufficient_evidence" ? (
-        <Alert kind="warn" title="The indexed sources don't support an answer"><p>{r.message}</p></Alert>
+        <>
+          <Alert kind="warn" title="The indexed sources don't support an answer"><p>{r.message}</p></Alert>
+          {r.library_overview && (
+            <section aria-label="What the library contains" className="rounded-lg border border-line p-3 text-sm">
+              <p className="font-medium">{r.library_overview.note}</p>
+              <p className="mt-1 text-muted">{r.library_overview.total} document{r.library_overview.total === 1 ? "" : "s"} loaded, for example:</p>
+              <ul className="mt-1 list-disc pl-5">{r.library_overview.examples.map((e) => <li key={e.identifier || e.title}>{e.title}</li>)}</ul>
+            </section>
+          )}
+          {r.nearest_sources && r.nearest_sources.length > 0 && (
+            <section aria-label="Closest sources in the library">
+              <h3 className="mb-1 flex flex-wrap items-center gap-2 text-lg font-semibold"><BookOpen className="h-4 w-4 text-brass" aria-hidden />Closest sources in the library <Badge tone="warn">weak match — not an answer to your question</Badge></h3>
+              <p className="mb-2 text-sm text-muted">These are the nearest passages the library has. They may only be loosely related; read them as a starting point, not as support for a conclusion.</p>
+              <ul className="space-y-2">{r.nearest_sources.map((c) => <CitationCard key={c.n} c={c} />)}</ul>
+            </section>
+          )}
+        </>
       ) : (
         <>
           <section aria-label="What the sources say" className="space-y-2">
@@ -96,7 +129,7 @@ export function AnswerCard({ r, onAsk }: { r: AskResponse; onAsk: (q: string) =>
         <section aria-label="Questions that would sharpen this"><h3 className="mb-1 text-lg font-semibold">Details that would change the answer</h3>
           <ul className="space-y-1.5">{r.clarifying_questions.map((q) => <li key={q}><button className="text-left text-sm text-brand hover:underline" onClick={() => onAsk(q)}>{q}</button></li>)}</ul></section>
       )}
-      {r.status === "ok" && r.sections.next_steps && (
+      {r.sections.next_steps && (
         <section aria-label="Next steps"><h3 className="mb-1 text-lg font-semibold">Practical next steps</h3><ol className="list-decimal space-y-1 pl-5 text-sm">{r.sections.next_steps.map((s) => <li key={s}>{s}</li>)}</ol>
           {r.sections.professional_advice && <p className="mt-3 flex items-start gap-2 text-sm text-muted"><ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-ok" aria-hidden />{r.sections.professional_advice}</p>}</section>
       )}
