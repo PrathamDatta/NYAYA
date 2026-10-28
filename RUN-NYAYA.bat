@@ -34,7 +34,7 @@ if not exist "%ROOT%backend\app\main.py" (
   where git >nul 2>nul
   if errorlevel 1 goto :fail_tool
   echo  Downloading the project from GitHub...
-  git clone -b %BRANCH% %REPO_URL% "%ROOT%"
+  git clone -b %BRANCH% %REPO_URL% "%ROOT:~0,-1%"
   if errorlevel 1 goto :fail_clone
 )
 
